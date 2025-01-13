@@ -143,7 +143,7 @@ namespace dae
 		}
 		void RotateY(float r) noexcept
 		{
-			m_WorldMatrix = m_WorldMatrix * Matrix::CreateRotationY(r);
+			m_WorldMatrix = Matrix::CreateRotationY(r) * m_WorldMatrix;
 		}
 
 		Mesh(const Mesh&) = delete;

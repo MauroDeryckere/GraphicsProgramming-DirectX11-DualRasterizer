@@ -40,6 +40,8 @@ int main(int argc, char* args[])
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
+	static bool displayFPS = true;
+
 	//Start loop
 	pTimer->Start();
 	float printTimer = 0.f;
@@ -58,9 +60,57 @@ int main(int argc, char* args[])
 			case SDL_KEYUP:
 				break;
 			case SDL_KEYDOWN:
+				if (e.key.keysym.scancode == SDL_SCANCODE_F1)
+				{
+					pRenderer->ToggleRasterizerMode();
+				}
 				if (e.key.keysym.scancode == SDL_SCANCODE_F2)
 				{
+					pRenderer->ToggleRotationMode();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F3)
+				{
+					pRenderer->ToggleFireMesh();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F4)
+				{
 					pRenderer->ChangeSamplerState();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F5)
+				{
+					pRenderer->ChangeShadingMode();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F6)
+				{
+					pRenderer->ToggleNormalMap();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F7)
+				{
+					pRenderer->ToggleDisplayDepthBuffer();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F8)
+				{
+					pRenderer->ToggleBoundingBoxes();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F9)
+				{
+					pRenderer->ChangeCullMode();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F10)
+				{
+					pRenderer->ToggleUniformClearColor();
+				}
+				if (e.key.keysym.scancode == SDL_SCANCODE_F11)
+				{
+					displayFPS = !displayFPS;
+					if (displayFPS)
+					{
+						std::cout << "Display FPS -> Enabled\n";
+					}
+					else
+					{
+						std::cout << "Display FPS -> Disabled\n";
+					}
 				}
 				break;
 			default: ;
@@ -79,7 +129,10 @@ int main(int argc, char* args[])
 		if (printTimer >= 1.f)
 		{
 			printTimer = 0.f;
-			std::cout << "dFPS: " << pTimer->GetdFPS() << std::endl;
+			if (displayFPS)
+			{
+				std::cout << "dFPS: " << pTimer->GetdFPS() << std::endl;
+			}
 		}
 	}
 	pTimer->Stop();

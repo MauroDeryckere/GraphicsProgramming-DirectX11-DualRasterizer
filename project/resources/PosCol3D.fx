@@ -6,7 +6,7 @@ float4x4 gWorldMatrix : World;
 // Light
 float3 gLightDirection = float3(0.577f, -0.577f, 0.577f);
 float gLightIntensity = 7.0f;
-float4 gAmbientColor = float4(0.055f, 0.055f, 0.055f, 0);
+float4 gAmbientColor = float4(0.025f, 0.025f, 0.025f, 0);
 
 // Camera
 float3 gCameraPosition = float3(0, 0, 0);

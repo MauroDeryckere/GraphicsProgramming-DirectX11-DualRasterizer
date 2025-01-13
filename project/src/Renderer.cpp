@@ -12,12 +12,12 @@ namespace dae {
 		//Initialize
 		SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-		m_Camera.Initialize(45.f, {0.f, 0.f, -50.f}, float(m_Width) / float(m_Height));
+		m_Camera.Initialize(45.f, {0.f, 0.f, 0.f}, float(m_Width) / float(m_Height));
 
 		//Initialize DirectX pipeline
 		if (InitializeDirectX() == S_OK)
 		{
-			m_IsInitialized = true;
+			m_IsDirectXInitialized = true;
 			std::cout << "DirectX is initialized and ready!" << std::endl;
 		}
 		else
@@ -26,28 +26,29 @@ namespace dae {
 		}
 
 		//Intialize textures
-		m_pDiffuseTexture = std::make_unique<Texture>(L"Resources/vehicle_diffuse.png", m_pDevice);
-		m_pGlossinessTexture = std::make_unique<Texture>(L"Resources/vehicle_gloss.png", m_pDevice);
-		m_pNormalTexture = std::make_unique<Texture>(L"Resources/vehicle_normal.png", m_pDevice);
-		m_pSpecularTexture = std::make_unique<Texture>(L"Resources/vehicle_specular.png", m_pDevice);
+		m_pVehicleDiffuseTexture = std::make_unique<Texture>(L"Resources/vehicle_diffuse.png", m_pDevice);
+		m_pVehicleGlossinessTexture = std::make_unique<Texture>(L"Resources/vehicle_gloss.png", m_pDevice);
+		m_pVehicleNormalTexture = std::make_unique<Texture>(L"Resources/vehicle_normal.png", m_pDevice);
+		m_pVehicleSpecularTexture = std::make_unique<Texture>(L"Resources/vehicle_specular.png", m_pDevice);
 
 		m_pFireDiffuseTexture = std::make_unique<Texture>(L"Resources/fireFX_diffuse.png", m_pDevice);
 
 
 		//Initialize effects
 		m_pVehicleEffect = std::make_shared<PixelShadingEffect>(m_pDevice, L"Resources/PosCol3D.fx");
-		m_pVehicleEffect->SetDiffuseTexture(m_pDiffuseTexture.get());
-		m_pVehicleEffect->SetGlossinessTexture(m_pGlossinessTexture.get());
-		m_pVehicleEffect->SetNormalTexture(m_pNormalTexture.get());
-		m_pVehicleEffect->SetSpecularTexture(m_pSpecularTexture.get());
+		m_pVehicleEffect->SetDiffuseTexture(m_pVehicleDiffuseTexture.get());
+		m_pVehicleEffect->SetGlossinessTexture(m_pVehicleGlossinessTexture.get());
+		m_pVehicleEffect->SetNormalTexture(m_pVehicleNormalTexture.get());
+		m_pVehicleEffect->SetSpecularTexture(m_pVehicleSpecularTexture.get());
 
 		m_pFireEffect = std::make_shared<BaseEffect>(m_pDevice, L"Resources/PartialCoverage3D.fx");
 		m_pFireEffect->SetDiffuseTexture(m_pFireDiffuseTexture.get());
 
-
 		//Initialize models
 		m_Meshes.emplace_back(std::make_unique<Mesh>(m_pDevice, "Resources/vehicle.obj", m_pVehicleEffect));
 		m_Meshes.emplace_back(std::make_unique<Mesh>(m_pDevice, "Resources/fireFX.obj", m_pFireEffect));
+		m_Meshes[0]->Translate({ 0.f, 0.f, 50.f });
+		m_Meshes[1]->Translate({ 0.f, 0.f, 50.f });
 	}
 
 	Renderer::~Renderer()
@@ -78,7 +79,7 @@ namespace dae {
 
 	void Renderer::ChangeSamplerState() noexcept
 	{
-		if (!m_IsInitialized)
+		if (!m_IsDirectXInitialized)
 		{
 			return;
 		}
@@ -119,7 +120,10 @@ namespace dae {
 
 		for (auto& m : m_Meshes)
 		{
-			m->RotateY(TO_RADIANS*(45.f * pTimer->GetElapsed()));
+			if (m_IsRotationMode)
+			{
+				m->RotateY(TO_RADIANS*(45.f * pTimer->GetElapsed()));
+			}
 			m->UpdateEffectMatrices(m_Camera.viewMatrix * m_Camera.projectionMatrix);
 			m->UpdateCameraPos(m_Camera.origin);
 		}
@@ -127,22 +131,41 @@ namespace dae {
 
 	void Renderer::Render() const
 	{
-		if (!m_IsInitialized)
+		if (m_IsSofwareRasterizerMode)
+		{
+			RenderSoftware();
+			return;
+		}
+		RenderDirectXHardware();
+	}
+
+	void Renderer::RenderDirectXHardware() const
+	{
+		if (!m_IsDirectXInitialized)
 			return;
 
 		// Clear RTV & DSV
-		float constexpr color[4]{ 0.f, 0.f, .3f, 1.f };
-		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, color);
+		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, m_DisplayUniformClearColor ? UNIFORM_COLOR : HARDWARE_COLOR);
 		m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
 		// Set pipeline + invoke drawcalls
 		for (auto& m : m_Meshes)
 		{
+			if (!m_DisplayFireMesh && m_Meshes.size() > 1 && m == m_Meshes[1]) // Hard coded to array idx 1 currently since it's just a demo
+			{
+				continue;
+			}
 			m->Render(m_pDeviceContext);
 		}
 
 		// present backbuffer (swap)
 		m_pSwapChain->Present(0, 0);
+	}
+
+	void Renderer::RenderSoftware() const
+	{
+		//TODO
+		std::cout << "software rendering not added yet\n";
 	}
 
 	HRESULT Renderer::InitializeDirectX()
@@ -176,7 +199,7 @@ namespace dae {
 
 		// Create DXGI Factory
 		IDXGIFactory1* pFactory{ };
-		result = CreateDXGIFactory1(__uuidof(IDXGIFactory1),reinterpret_cast<void**>(&pFactory));
+		result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&pFactory));
 		if (FAILED(result))
 		{
 			return result;

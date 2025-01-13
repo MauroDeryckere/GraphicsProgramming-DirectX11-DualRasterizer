@@ -23,7 +23,6 @@ namespace dae
 			fovAngle{ _fovAngle }
 		{ }
 
-
 		Vector3 origin{};
 		float fovAngle{ 90.f };
 		float fov{ tanf((fovAngle * TO_RADIANS) / 2.f) };
@@ -37,7 +36,8 @@ namespace dae
 		float totalYaw{};
 
 		float movementSpeed{ 10.f };
-		float rotationSpeed{ 1.f };
+		float sprintSpeed{ 3.f };
+		float rotationSpeed{ 5.f };
 
 		float nearPlane{ 0.1f };
 		float farPlane{ 100.f };
@@ -115,7 +115,7 @@ namespace dae
 			//Keyboard Input
 			uint8_t const* pKeyboardState{ SDL_GetKeyboardState(nullptr) };
 			assert(pKeyboardState);
-
+			bool sprinting{ false };
 			Vector3 movementDir{ };
 
 			if (pKeyboardState[SDL_SCANCODE_W] || pKeyboardState[SDL_SCANCODE_UP])
@@ -126,34 +126,48 @@ namespace dae
 				movementDir -= right;
 			if (pKeyboardState[SDL_SCANCODE_D] || pKeyboardState[SDL_SCANCODE_RIGHT])
 				movementDir += right;
+			if (pKeyboardState[SDL_SCANCODE_LSHIFT])
+				sprinting = true;
+
+			auto adjustedMovementSpeed = movementSpeed;
+			if (sprinting)
+			{
+				adjustedMovementSpeed *= sprintSpeed;
+			}
 
 			if (! (movementDir.x == 0.f && movementDir.y == 0.f && movementDir.z == 0.f) )
 			{
 				movementDir.Normalize();
-				origin += (movementDir * movementSpeed * deltaTime);
+				origin += movementDir * deltaTime * adjustedMovementSpeed;
 			}
 
 			//Mouse Input
-			//int mouseX{};
-			//int mouseY{};
-			//uint32_t const mouseState{ SDL_GetRelativeMouseState(&mouseX, &mouseY) };
+			int mouseX{};
+			int mouseY{};
+			uint32_t const mouseState{ SDL_GetRelativeMouseState(&mouseX, &mouseY) };
 
-			//// LMB
-			//if (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT))
-			//{
-			//	origin += forward * (-mouseY * movementSpeed * deltaTime);
-			//	forward = Matrix::CreateRotationY(mouseX * rotationSpeed * deltaTime).TransformVector(forward);
-			//}
+			// LMB and RMB move up / down
+			if (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT) and mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT))
+			{
+				origin += up * (-mouseY * adjustedMovementSpeed * 10.f * deltaTime);
+			}
+			else
+			{
+				// LMB - move forward / backward and rotate yaw 
+				if (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT))
+				{
+					origin += forward * (-mouseY * adjustedMovementSpeed * 10.f *deltaTime);
+					forward = Matrix::CreateRotationY(mouseX * rotationSpeed * deltaTime).TransformVector(forward);
+				}
 
-			//// RMB
-			//if (mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT))
-			//{
-			//	forward = Matrix::CreateRotationY(mouseX * rotationSpeed * deltaTime).TransformVector(forward);
-			//	forward = Matrix::CreateRotationX(-mouseY * rotationSpeed * deltaTime).TransformVector(forward);
-			//}
+				// RMB - rotate pitch and yaw
+				if (mouseState & SDL_BUTTON(SDL_BUTTON_RIGHT))
+				{
 
-			//TODO move world Up/Down
-
+					forward = Matrix::CreateRotationY(mouseX * rotationSpeed * deltaTime).TransformVector(forward);
+					forward = Matrix::CreateRotationX(-mouseY * rotationSpeed * deltaTime).TransformVector(forward);
+				}
+			}
 
 			//Update Matrices
 			CalculateViewMatrix();
