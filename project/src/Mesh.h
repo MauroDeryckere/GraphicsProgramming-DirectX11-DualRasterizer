@@ -21,6 +21,8 @@ namespace dae
 		Mesh(ID3D11Device* pDevice, std::string const& path, std::shared_ptr<BaseEffect> pEffect)
 		{
 			//Initialize models
+			m_Vertices = {};
+			m_Indices = {};
 			Utils::ParseOBJ(path, m_Vertices, m_Indices);
 
 			m_pEffect = pEffect;
@@ -69,7 +71,7 @@ namespace dae
 			//Create vertex buffer
 			D3D11_BUFFER_DESC bufferDesc{};
 			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-			bufferDesc.ByteWidth = sizeof(Vertex_Out) * static_cast<uint32_t>(m_Vertices.size());
+			bufferDesc.ByteWidth = sizeof(Vertex) * static_cast<uint32_t>(m_Vertices.size());
 			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 			bufferDesc.CPUAccessFlags = 0;
 			bufferDesc.MiscFlags = 0;
@@ -109,7 +111,7 @@ namespace dae
 			pDeviceContext->IASetInputLayout(m_pInputLayout);
 
 			//Set vertex buffer
-			UINT constexpr stride{ sizeof(Vertex_Out) };
+			UINT constexpr stride{ sizeof(Vertex) };
 			UINT constexpr offset{ 0 };
 			pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 
@@ -147,6 +149,32 @@ namespace dae
 			m_WorldMatrix =  Matrix::CreateRotationY(r) * m_WorldMatrix;
 		}
 
+		//Some functions required for software rasterizer
+		[[nodiscard]] PrimitiveTopology GetPrimitiveTopology() const noexcept
+		{
+			return m_PrimitiveTopology;
+		}
+
+		[[nodiscard]] std::vector<uint32_t> const& GetIndices() const noexcept
+		{
+			return m_Indices;
+		}
+
+		[[nodiscard]] std::vector<Vertex_Out>& GetVertices_Out_Ref() noexcept
+		{
+			return m_Vertices_Out;
+		}
+
+		[[nodiscard]] std::vector<Vertex> const& GetVertices() const noexcept
+		{
+			return m_Vertices;
+		}
+
+		[[nodiscard]] Matrix const& GetWorldMatrix() const noexcept
+		{
+			return m_WorldMatrix;
+		}
+
 		Mesh(const Mesh&) = delete;
 		Mesh& operator=(const Mesh&) = delete;
 		Mesh(Mesh&&) = delete;
@@ -156,9 +184,10 @@ namespace dae
 		Matrix m_WorldMatrix{};
 
 		//These don't have to be stored for the hardware rasterizer but are necessare for software.
-		std::vector<Vertex_Out> m_Vertices{};
+		std::vector<Vertex> m_Vertices{};
+		std::vector<Vertex_Out> m_Vertices_Out{};
 		std::vector<uint32_t> m_Indices{};
-		PrimitiveTopology primitiveTopology{ PrimitiveTopology::TriangleStrip };
+		PrimitiveTopology m_PrimitiveTopology{ PrimitiveTopology::TriangleStrip };
 
 		// would be shared with resource manager
 		std::shared_ptr<BaseEffect> m_pEffect{};

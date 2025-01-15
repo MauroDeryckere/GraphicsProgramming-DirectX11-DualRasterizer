@@ -251,9 +251,9 @@ namespace dae
 
 		//Software
 		void RenderSoftware() const;
-		void VertexTransformationFunction(std::vector<Vector2>& screenSpace, Mesh& mesh) const;
-		void RenderTriangle(Mesh const& m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex);
+		void VertexTransformationFunction(std::vector<Vector2>& screenSpace, Mesh* mesh) const;
+		void RenderTriangle(Mesh const* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const;
 
-		[[nodiscard]] ColorRGB PixelShading(Mesh const& m, Vertex_Out const& v, Vector3 const& viewDir);
+		[[nodiscard]] ColorRGB PixelShading(Mesh const* m, Vertex_Out const& v, Vector3 const& viewDir);
 	};
 }

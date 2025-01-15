@@ -7,15 +7,15 @@ namespace dae
 	struct Vertex
 	{
 		Vector3 position{};
-		Vector2 uv{};
+		Vector2 texcoord{};
 		Vector3 normal{};
 		Vector3 tangent{};
 	};
 
 	struct Vertex_Out
 	{
-		Vector3 position{};
-		Vector2 uv{};
+		Vector4 position{};
+		Vector2 texcoord{};
 		Vector3 normal{};
 		Vector3 tangent{};
 	};

@@ -3,6 +3,7 @@
 #include "Mesh.h"
 #include "Utils.h"
 #include "Effect.h"
+#include <execution>
 
 namespace dae {
 
@@ -131,11 +132,11 @@ namespace dae {
 
 	void Renderer::Render() const
 	{
-		if (m_IsSofwareRasterizerMode)
-		{
-			RenderSoftware();
-			return;
-		}
+		//if (m_IsSofwareRasterizerMode)
+		//{
+		//	RenderSoftware();
+		//	return;
+		//}
 		RenderDirectXHardware();
 	}
 
@@ -164,8 +165,105 @@ namespace dae {
 
 	void Renderer::RenderSoftware() const
 	{
-		//TODO
-		std::cout << "software rendering not added yet\n";
+		//@START
+	//Lock BackBuffer
+		SDL_LockSurface(m_pBackBuffer);
+
+		std::fill_n(m_pDepthBufferPixels, m_Width * m_Height, FLT_MAX);
+		std::fill_n(m_pBackBufferPixels, m_Width * m_Height, 0);
+
+		//clear the background
+		SDL_FillRect(m_pBackBuffer, NULL, SDL_MapRGB(m_pBackBuffer->format, 100, 100, 100));
+
+		for (auto & m : m_Meshes)
+		{
+			//Meshes defined in world space before the transform function,
+			std::vector<Vector2> vertices_screenSpace{};
+			//convert each NDC coordinates to screen space / raster space
+			VertexTransformationFunction(vertices_screenSpace, m.get());
+
+			switch (m->GetPrimitiveTopology())
+			{
+			case PrimitiveTopology::TriangleList:
+				// Use parallel execution for triangle list
+				std::for_each(
+					std::execution::par_unseq,  // threading execution policy - threading would be slightly better using a "custom" system but for this demo it is sufficient
+					m->GetIndices().begin(), m->GetIndices().end(),
+					[this, &m, &vertices_screenSpace](uint32_t v)
+					{
+						if (v % 3 == 0)
+						{  // Only process every 3rd index - threading would be slightly better using a "custom" system but for this demo it is sufficient
+							RenderTriangle(m.get(), vertices_screenSpace, v, false);
+						}
+					});
+				break;
+			case PrimitiveTopology::TriangleStrip:
+				std::for_each(
+					std::execution::par_unseq,  // Parallel execution policy
+					m->GetIndices().begin(), m->GetIndices().end() - 2,
+					[this, &m, &vertices_screenSpace](uint32_t v)
+					{
+						RenderTriangle(m.get(), vertices_screenSpace, v, v % 2);
+					});
+				break;
+			default:
+				break;
+			}
+		}
+
+		//@END
+		//Update SDL Surface
+		SDL_UnlockSurface(m_pBackBuffer);
+		SDL_BlitSurface(m_pBackBuffer, 0, m_pFrontBuffer, 0);
+		SDL_UpdateWindowSurface(m_pWindow);
+	}
+
+	void Renderer::VertexTransformationFunction(std::vector<Vector2>& screenSpace, Mesh* mesh) const
+	{
+		//projection stage:
+		//model -> world space -> world -> view space 
+		auto const m{ mesh->GetWorldMatrix() * m_Camera.viewMatrix * m_Camera.projectionMatrix };
+
+		// Prepare the output container
+		screenSpace.resize(mesh->GetVertices().size());
+		mesh->GetVertices_Out_Ref().resize(mesh->GetVertices().size());
+
+		// Transform vertices in parallel
+		std::transform(
+			std::execution::par,  // Parallel execution policy
+			mesh->GetVertices().begin(), mesh->GetVertices().end(),
+			mesh->GetVertices_Out_Ref().begin(),
+			[&](auto const& v) {
+				Vertex_Out vOut{};
+				//vOut.color = v.color;
+				vOut.texcoord = v.texcoord;
+
+				vOut.position = m.TransformPoint(v.position.ToPoint4());
+
+				vOut.normal = mesh->GetWorldMatrix().TransformVector(v.normal);
+				vOut.tangent = mesh->GetWorldMatrix().TransformVector(v.tangent);
+
+				// View -> clipping space (NDC)
+				float const inverseWComponent{ 1.f / vOut.position.w };
+				vOut.position.x *= inverseWComponent;
+				vOut.position.y *= inverseWComponent;
+				vOut.position.z *= inverseWComponent;
+
+				// Convert to screen space (raster space)
+				float const x_screen{ (vOut.position.x + 1) * 0.5f * static_cast<float>(m_Width) }; //center of pixel
+				float const y_screen{ (1 - vOut.position.y) * 0.5f * static_cast<float>(m_Height) };
+
+				// Store screen space coordinates
+				auto const idx{ &v - mesh->GetVertices().data() }; // Calculate correct idx
+				screenSpace[idx] = { x_screen, y_screen };
+
+				return vOut;
+			});
+	}
+
+	void Renderer::RenderTriangle(Mesh const* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const
+	{
+
 	}
 
 	HRESULT Renderer::InitializeDirectX()
