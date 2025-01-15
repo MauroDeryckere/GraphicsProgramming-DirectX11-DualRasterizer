@@ -9,15 +9,19 @@
 
 namespace dae
 {
+	enum class PrimitiveTopology : uint8_t
+	{
+		TriangleList,
+		TriangleStrip
+	};
+
 	class Mesh final
 	{
 	public:
 		Mesh(ID3D11Device* pDevice, std::string const& path, std::shared_ptr<BaseEffect> pEffect)
 		{
 			//Initialize models
-			std::vector<Vertex> vertices;
-			std::vector<uint32_t> indices;
-			Utils::ParseOBJ(path, vertices, indices);
+			Utils::ParseOBJ(path, m_Vertices, m_Indices);
 
 			m_pEffect = pEffect;
 			assert(m_pEffect);
@@ -53,52 +57,49 @@ namespace dae
 			pTechnique->GetPassByIndex(0)->GetDesc(&passDesc);
 
 			HRESULT hr = pDevice->CreateInputLayout(
-							layout,
-							numElements, 
-							passDesc.pIAInputSignature, 
-							passDesc.IAInputSignatureSize, 
-							&m_pInputLayout);
+				layout,
+				numElements,
+				passDesc.pIAInputSignature,
+				passDesc.IAInputSignatureSize,
+				&m_pInputLayout);
 
-			if(FAILED(hr))
+			if (FAILED(hr))
 				assert(false && "Failed to create input layout");
-		
+
 			//Create vertex buffer
 			D3D11_BUFFER_DESC bufferDesc{};
 			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-			bufferDesc.ByteWidth = sizeof(Vertex) * static_cast<uint32_t>(vertices.size());
+			bufferDesc.ByteWidth = sizeof(Vertex_Out) * static_cast<uint32_t>(m_Vertices.size());
 			bufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 			bufferDesc.CPUAccessFlags = 0;
 			bufferDesc.MiscFlags = 0;
 
 			D3D11_SUBRESOURCE_DATA initData{};
-			initData.pSysMem = vertices.data();
+			initData.pSysMem = m_Vertices.data();
 
 			hr = pDevice->CreateBuffer(&bufferDesc, &initData, &m_pVertexBuffer);
-			
+
 			if (FAILED(hr))
 				assert(false && "Failed to create vertex buffer");
 
 			//Create index buffer
-			m_NumIndices = static_cast<uint32_t>(indices.size());
 			bufferDesc.Usage = D3D11_USAGE_IMMUTABLE;
-			bufferDesc.ByteWidth = sizeof(uint32_t) * m_NumIndices;
+			bufferDesc.ByteWidth = sizeof(uint32_t) * static_cast<uint32_t>(m_Indices.size());
 			bufferDesc.BindFlags = D3D11_BIND_INDEX_BUFFER;
 			bufferDesc.CPUAccessFlags = 0;
 			bufferDesc.MiscFlags = 0;
-			initData.pSysMem = indices.data();
+			initData.pSysMem = m_Indices.data();
 
 			hr = pDevice->CreateBuffer(&bufferDesc, &initData, &m_pIndexBuffer);
 			if (FAILED(hr))
 				assert(false && "Failed to create index buffer");
 		}
-
 		~Mesh()
 		{
 			SAFE_RELEASE(m_pInputLayout)
-			SAFE_RELEASE(m_pVertexBuffer)
-			SAFE_RELEASE(m_pIndexBuffer)
+				SAFE_RELEASE(m_pVertexBuffer)
+				SAFE_RELEASE(m_pIndexBuffer)
 		}
-
 		void Render(ID3D11DeviceContext* pDeviceContext) const
 		{
 			//Set primitive topology
@@ -108,7 +109,7 @@ namespace dae
 			pDeviceContext->IASetInputLayout(m_pInputLayout);
 
 			//Set vertex buffer
-			UINT constexpr stride{ sizeof(Vertex) };
+			UINT constexpr stride{ sizeof(Vertex_Out) };
 			UINT constexpr offset{ 0 };
 			pDeviceContext->IASetVertexBuffers(0, 1, &m_pVertexBuffer, &stride, &offset);
 
@@ -121,7 +122,7 @@ namespace dae
 			for (UINT p = 0; p < techDesc.Passes; ++p)
 			{
 				m_pEffect->GetTechnique()->GetPassByIndex(p)->Apply(0, pDeviceContext);
-				pDeviceContext->DrawIndexed(m_NumIndices, 0, 0);
+				pDeviceContext->DrawIndexed(static_cast<uint32_t>(m_Indices.size()), 0, 0);
 			}
 		}
 
@@ -143,7 +144,7 @@ namespace dae
 		}
 		void RotateY(float r) noexcept
 		{
-			m_WorldMatrix = Matrix::CreateRotationY(r) * m_WorldMatrix;
+			m_WorldMatrix =  Matrix::CreateRotationY(r) * m_WorldMatrix;
 		}
 
 		Mesh(const Mesh&) = delete;
@@ -154,13 +155,16 @@ namespace dae
 	private:
 		Matrix m_WorldMatrix{};
 
+		//These don't have to be stored for the hardware rasterizer but are necessare for software.
+		std::vector<Vertex_Out> m_Vertices{};
+		std::vector<uint32_t> m_Indices{};
+		PrimitiveTopology primitiveTopology{ PrimitiveTopology::TriangleStrip };
+
 		// would be shared with resource manager
 		std::shared_ptr<BaseEffect> m_pEffect{};
 
 		ID3D11InputLayout* m_pInputLayout{};
 		ID3D11Buffer* m_pVertexBuffer{};
 		ID3D11Buffer* m_pIndexBuffer{};
-
-		uint32_t m_NumIndices{};
 	};
 }

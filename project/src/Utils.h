@@ -9,7 +9,7 @@ namespace dae
 		//Just parses vertices and indices
 #pragma warning(push)
 #pragma warning(disable : 4505) //Warning unreferenced local function
-		static bool ParseOBJ(const std::string& filename, std::vector<Vertex>& vertices, std::vector<uint32_t>& indices, bool flipAxisAndWinding = true)
+		static bool ParseOBJ(const std::string& filename, std::vector<Vertex_Out>& vertices, std::vector<uint32_t>& indices, bool flipAxisAndWinding = true)
 		{
 			std::ifstream file(filename);
 			if (!file)
@@ -35,7 +35,7 @@ namespace dae
 				}
 				else if (sCommand == "v")
 				{
-					//Vertex
+					//Vertex_Out
 					float x, y, z;
 					file >> x >> y >> z;
 
@@ -43,14 +43,14 @@ namespace dae
 				}
 				else if (sCommand == "vt")
 				{
-					// Vertex TexCoord
+					// Vertex_Out TexCoord
 					float u, v;
 					file >> u >> v;
 					UVs.emplace_back(u, 1 - v);
 				}
 				else if (sCommand == "vn")
 				{
-					// Vertex Normal
+					// Vertex_Out Normal
 					float x, y, z;
 					file >> x >> y >> z;
 
@@ -64,7 +64,7 @@ namespace dae
 					//add the material index as attibute to the attribute array
 					//
 					// Faces or triangles
-					Vertex vertex{};
+					Vertex_Out vertex{};
 					size_t iPosition, iTexCoord, iNormal;
 
 					uint32_t tempIndices[3];
@@ -72,9 +72,7 @@ namespace dae
 					{
 						// OBJ format uses 1-based arrays
 						file >> iPosition;
-						vertex.x = positions[iPosition - 1].x;
-						vertex.y = positions[iPosition - 1].y;
-						vertex.z = positions[iPosition - 1].z;
+						vertex.position = positions[iPosition - 1];
 
 						if ('/' == file.peek())//is next in buffer ==  '/' ?
 						{
@@ -84,8 +82,7 @@ namespace dae
 							{
 								// Optional texture coordinate
 								file >> iTexCoord;
-								vertex.u = UVs[iTexCoord - 1].x;
-								vertex.v = UVs[iTexCoord - 1].y;
+								vertex.uv = UVs[iTexCoord - 1];
 							}
 
 							if ('/' == file.peek())
@@ -94,9 +91,7 @@ namespace dae
 
 								// Optional vertex normal
 								file >> iNormal;
-								vertex.nx = normals[iNormal - 1].x;
-								vertex.ny = normals[iNormal - 1].y;
-								vertex.nz = normals[iNormal - 1].z;
+								vertex.normal = normals[iNormal - 1];
 							}
 						}
 
@@ -106,7 +101,7 @@ namespace dae
 					}
 
 					indices.push_back(tempIndices[0]);
-					if (flipAxisAndWinding) 
+					if (flipAxisAndWinding)
 					{
 						indices.push_back(tempIndices[2]);
 						indices.push_back(tempIndices[1]);
@@ -128,12 +123,13 @@ namespace dae
 				uint32_t index1 = indices[size_t(i) + 1];
 				uint32_t index2 = indices[size_t(i) + 2];
 
-				const Vector3 p0 = { vertices[index0].x, vertices[index0].y, vertices[index0].z };
-				const Vector3 p1 = { vertices[index1].x, vertices[index1].y, vertices[index1].z };
-				const Vector3 p2 = { vertices[index2].x, vertices[index2].y, vertices[index2].z };
-				const Vector2 uv0 = { vertices[index0].u, vertices[index0].v };
-				const Vector2 uv1 = { vertices[index1].u, vertices[index1].v };
-				const Vector2 uv2 = { vertices[index2].u, vertices[index2].v };
+				const Vector3& p0 = { vertices[index0].position };
+				const Vector3& p1 = { vertices[index1].position };
+				const Vector3& p2 = { vertices[index2].position };
+
+				const Vector2& uv0 = { vertices[index0].uv };
+				const Vector2& uv1 = { vertices[index1].uv };
+				const Vector2& uv2 = { vertices[index2].uv };
 
 				const Vector3 edge0 = p1 - p0;
 				const Vector3 edge1 = p2 - p0;
@@ -142,32 +138,23 @@ namespace dae
 				float r = 1.f / Vector2::Cross(diffX, diffY);
 
 				Vector3 tangent = (edge0 * diffY.y - edge1 * diffY.x) * r;
-				vertices[index0].tx += tangent.x;
-				vertices[index0].ty += tangent.y;
-				vertices[index0].tz += tangent.z;
-
-				vertices[index1].tx += tangent.x;
-				vertices[index1].ty += tangent.y;
-				vertices[index1].tz += tangent.z;
-
-				vertices[index2].tx += tangent.x;
-				vertices[index2].ty += tangent.y;
-				vertices[index2].tz += tangent.z;
+				vertices[index0].tangent += tangent;
+				vertices[index1].tangent += tangent;
+				vertices[index2].tangent += tangent;
 			}
 
 			//Create the Tangents (reject)
 			for (auto& v : vertices)
 			{
-				auto const tan = Vector3::Reject({ v.tx, v.ty, v.tz }, { v.nx, v.ny, v.nz }).Normalized();
-				v.tx = tan.x;
-				v.ty = tan.y;
-				v.tz = tan.z;
 
-				if(flipAxisAndWinding)
+				auto const tan = Vector3::Reject(v.tangent, v.normal).Normalized();
+				v.tangent = tan;
+
+				if (flipAxisAndWinding)
 				{
-					v.z *= -1.f;
-					v.nz *= -1.f;
-					v.tz *= -1.f;
+					v.position.z *= -1.f;
+					v.normal.z *= -1.f;
+					v.tangent.z *= -1.f;
 				}
 			}
 

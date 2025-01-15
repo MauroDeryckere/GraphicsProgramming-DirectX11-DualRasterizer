@@ -1,14 +1,23 @@
 #pragma	once
 
+#include "pch.h"
+
 namespace dae
 {
 	struct Vertex
 	{
-		float x, y, z; // pos
-		float u, v; // uv coords
+		Vector3 position{};
+		Vector2 uv{};
+		Vector3 normal{};
+		Vector3 tangent{};
+	};
 
-		float nx, ny, nz; // normal
-		float tx, ty, tz; // tangent
+	struct Vertex_Out
+	{
+		Vector3 position{};
+		Vector2 uv{};
+		Vector3 normal{};
+		Vector3 tangent{};
 	};
 }
 

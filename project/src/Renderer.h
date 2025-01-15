@@ -166,6 +166,14 @@ namespace dae
 
 		Camera m_Camera{};
 
+		//Software rasiterizer
+		SDL_Surface* m_pFrontBuffer{ nullptr };
+		SDL_Surface* m_pBackBuffer{ nullptr };
+		uint32_t* m_pBackBufferPixels{ nullptr };
+
+		float* m_pDepthBufferPixels{ nullptr };
+
+
 		//DirectX
 		bool m_IsDirectXInitialized{ false }; // Only want to render when DirectX is properly initialized
 		ID3D11Device* m_pDevice{ nullptr };
@@ -235,11 +243,17 @@ namespace dae
 		float static constexpr UNIFORM_COLOR[4] = { .1f, .1f, .1f, 1.f };
 		float static constexpr HARDWARE_COLOR[4] = { .39f, .59f, .93f, 1.f };
 		float static constexpr SOFTWARE_COLOR[4] = {.30f, .39f, .39f, 1.f};
-
 		// End settings
 
-		void RenderDirectXHardware() const;
-		void RenderSoftware() const;
+		//Hardware
 		HRESULT InitializeDirectX();
+		void RenderDirectXHardware() const;
+
+		//Software
+		void RenderSoftware() const;
+		void VertexTransformationFunction(std::vector<Vector2>& screenSpace, Mesh& mesh) const;
+		void RenderTriangle(Mesh const& m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex);
+
+		[[nodiscard]] ColorRGB PixelShading(Mesh const& m, Vertex_Out const& v, Vector3 const& viewDir);
 	};
 }
