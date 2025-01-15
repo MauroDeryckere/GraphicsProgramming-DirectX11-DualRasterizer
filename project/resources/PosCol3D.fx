@@ -90,13 +90,8 @@ float4 CalculateLambert(float kd, float4 cd)
 }
 float CalculatePhong(float ks, float exp, float3 lightDir, float3 viewDir, float3 normal)
 {
-    const float3 refl = reflect(lightDir, normal);
+    const float3 refl = reflect(-lightDir, normal);
     const float a = saturate(dot(refl, viewDir));
-    
-    if (a <= 0)
-    {
-        return 0.f;
-    }
     return ks * pow(a, exp);
 }
 
@@ -130,11 +125,11 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
         return float4(0.f, 0.f, 0.f, 0.f);
     }
     
-        const float3 viewDir = normalize(input.WorldPosition.xyz - gCameraPosition); 
-    const float4 lambert = CalculateLambert(1.0f, gDiffuseMap.Sample(gSampleState, input.TexCoord));
+    const float3 viewDir = normalize(input.WorldPosition.xyz - gCameraPosition); 
+    const float4 lambert = CalculateLambert(gLightIntensity, gDiffuseMap.Sample(gSampleState, input.TexCoord));
     const float4 specular = gSpecularMap.Sample(gSampleState, input.TexCoord) * CalculatePhong(1.0f, 
                                                                                 gShininess * gGlossinessMap.Sample(gSampleState, input.TexCoord).b, 
-                                                                                -gLightDirection, 
+                                                                                gLightDirection, 
                                                                                 viewDir, 
                                                                                 input.Normal);
     // soeme different returns to double check everything works correctly
@@ -144,7 +139,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     // return float4(normal.x, normal.y, normal.z, 1.0F);
     // return float4(observedArea, observedArea, observedArea, 1.0F);
     
-    return observedArea * gLightIntensity * lambert + specular + gAmbientColor;
+    return observedArea * lambert + specular + gAmbientColor;
 }
 
 // Technique 

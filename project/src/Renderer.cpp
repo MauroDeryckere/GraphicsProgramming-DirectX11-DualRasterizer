@@ -388,9 +388,11 @@ namespace dae {
 					Vertex_Out pixelToShade{};
 					pixelToShade.position = { static_cast<float>(px), static_cast<float>(py), interpolatedDepth,interpolatedDepth };
 
-					Vector3 const viewDir{ (interpolatedDepth * (weight0 * (m->GetVertices_Out()[idx1].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx1].position.w +
-															weight1 * (m->GetVertices_Out()[idx2].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx2].position.w +
-															weight2 * (m->GetVertices_Out()[idx3].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx3].position.w) / 3).Normalized() };
+					Vector3 const viewDir{ ((interpolatedDepth * (weight0 * (m->GetVertices_Out()[idx1].position) / m->GetVertices_Out()[idx1].position.w +
+															weight1 * (m->GetVertices_Out()[idx2].position) / m->GetVertices_Out()[idx2].position.w +
+															weight2 * (m->GetVertices_Out()[idx3].position) / m->GetVertices_Out()[idx3].position.w) / 3) - m_Camera.origin.ToPoint4() ).Normalized() };
+
+					// view dir
 
 					pixelToShade.texcoord = interpolatedDepth * ((weight0 * m->GetVertices()[idx1].texcoord) / depth0
 						+ (weight1 * m->GetVertices()[idx2].texcoord) / depth1
@@ -421,7 +423,7 @@ namespace dae {
 	{
 		//Global light & other defines
 		Vector3 static constexpr LIGHT_DIRECTION{ Vector3{.577f, -.577f, .577f} };
-		ColorRGB static constexpr AMBIENT_COLOR{ 0.03f, 0.03f, 0.03f };
+		ColorRGB static constexpr AMBIENT_COLOR{ 0.025f, 0.025f, 0.025f };
 		float static constexpr SHININESS{ 25.0f };
 		float static constexpr KD{ 7.f };
 
@@ -438,8 +440,8 @@ namespace dae {
 
 
 		//calculate observed area
-		float const observedArea{ m_UseNormalMapping ? Utils::CalculateObservedArea(sampledNormal,LIGHT_DIRECTION)
-													 : Utils::CalculateObservedArea(v.normal.Normalized(), LIGHT_DIRECTION) };
+		float const observedArea{ std::clamp(m_UseNormalMapping ? Utils::CalculateObservedArea(sampledNormal,LIGHT_DIRECTION)
+													 : Utils::CalculateObservedArea(v.normal.Normalized(), LIGHT_DIRECTION), 0.f, 1.f) };
 		switch (m_CurrShadingMode)
 		{
 		case ShadingMode::ObservedArea:
@@ -454,13 +456,13 @@ namespace dae {
 		}
 		case ShadingMode::Specular:
 		{
-			result = observedArea * BRDF::Phong(m_pVehicleSpecularTexture->Sample(v.texcoord).r, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
+			result = observedArea * m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
 			break;
 		}
 		case ShadingMode::Combined:
 		{
 			auto const lambert{ BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) };
-			ColorRGB const phong = BRDF::Phong(m_pVehicleSpecularTexture->Sample(v.texcoord).r, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
+			ColorRGB const phong = m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r,LIGHT_DIRECTION, viewDir, sampledNormal);
 
 			result = observedArea * lambert + phong;
 			break;
@@ -474,6 +476,8 @@ namespace dae {
 
 	HRESULT Renderer::InitializeDirectX()
 	{
+		HRESULT result{};
+
 		//Create device and device context
 		D3D_FEATURE_LEVEL constexpr featureLevel{ D3D_FEATURE_LEVEL_11_1 };
 		uint32_t createDeviceFlags{ 0 };
@@ -482,10 +486,60 @@ namespace dae {
 			createDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
 		#endif
 
+		// Create DXGI Factory
+		IDXGIFactory1* pFactory{ };
+		result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&pFactory));
+		if (FAILED(result))
+		{
+			return result;
+		}
+
+		IDXGIAdapter* pAdapter{ nullptr };
+		IDXGIAdapter* selectedAdapter{ nullptr };
+
+		//Look for the GPU with most memory
+		UINT i{ 0 };
+		size_t maxDedicatedVideoMemory{ 0 };
+
+		while (pFactory->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND) 
+		{
+			DXGI_ADAPTER_DESC desc;
+			pAdapter->GetDesc(&desc);
+
+			std::wcout << L"Adapter " << i << L": " << desc.Description << "\n";
+			std::wcout << L"VendorId: " << desc.VendorId << "\n";
+			std::wcout << L"DedicatedVideoMemory: " << desc.DedicatedVideoMemory << L" bytes \n";
+
+			// Skip integrated graphics
+			if (desc.DedicatedVideoMemory > maxDedicatedVideoMemory) 
+			{
+				maxDedicatedVideoMemory = desc.DedicatedVideoMemory;
+				selectedAdapter = pAdapter;
+			}
+			else 
+			{
+				pAdapter->Release();
+			}
+
+			++i;
+		}
+
+		if (selectedAdapter) 
+		{
+			DXGI_ADAPTER_DESC selectedDesc;
+			selectedAdapter->GetDesc(&selectedDesc);
+			std::wcout << L"Selected Adapter: " << selectedDesc.Description << std::endl;
+		}
+		else 
+		{
+			std::cerr << "No suitable adapter found!" << std::endl;
+			return false;
+		}
+
 		// https://learn.microsoft.com/en-us/windows/win32/seccrypto/common-hresult-values
-		HRESULT result = D3D11CreateDevice(
-			nullptr,
-			D3D_DRIVER_TYPE_HARDWARE,
+		result = D3D11CreateDevice(
+			selectedAdapter,
+			D3D_DRIVER_TYPE_UNKNOWN,
 			nullptr,
 			createDeviceFlags,
 			&featureLevel,
@@ -496,14 +550,6 @@ namespace dae {
 			&m_pDeviceContext
 		);
 
-		if (FAILED(result))
-		{
-			return result;
-		}
-
-		// Create DXGI Factory
-		IDXGIFactory1* pFactory{ };
-		result = CreateDXGIFactory1(__uuidof(IDXGIFactory1), reinterpret_cast<void**>(&pFactory));
 		if (FAILED(result))
 		{
 			return result;
