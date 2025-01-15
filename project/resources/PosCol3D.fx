@@ -24,10 +24,11 @@ Texture2D gGlossinessMap : GlossinessMap;
 // Sampling
 SamplerState gSampleState : register(s0);
 
+//TODO allow swapping betwene different cullmodes using this state 
 //Rasterizer
 RasterizerState gRasterizerState
 {
-    CullMode = back;
+    CullMode = none;
     FrontCounterClockwise = false; 
 };
 

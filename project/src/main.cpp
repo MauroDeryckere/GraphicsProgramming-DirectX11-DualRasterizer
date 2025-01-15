@@ -9,6 +9,8 @@
 
 using namespace dae;
 
+void PrintSettings() noexcept;
+
 void ShutDown(SDL_Window* pWindow)
 {
 	SDL_DestroyWindow(pWindow);
@@ -36,12 +38,13 @@ int main(int argc, char* args[])
 	if (!pWindow)
 		return 1;
 
+	PrintSettings();
+
 	//Initialize "framework"
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
 	static bool displayFPS = true;
-
 	//Start loop
 	pTimer->Start();
 	float printTimer = 0.f;
@@ -143,4 +146,27 @@ int main(int argc, char* args[])
 
 	ShutDown(pWindow);
 	return 0;
+}
+
+void PrintSettings() noexcept
+{
+	std::cout << "Settings & Keybinds: \n";
+
+	std::cout << "[F1]: Toggle Rasterizer Mode (Software - Hardware)\n";
+	std::cout << "[F2]: Toggle Rotation Mode\n";
+	std::cout << "[F3]: Toggle Display Fire Mesh (Only works for hardware, not displayed in software rasterizer)\n";
+	std::cout << "[F4]: Cycle Sampler Mode (Only works for hardware)\n";
+	std::cout << "[F5]: Cycle Shading Mode (Only works for software)\n";
+	std::cout << "[F6]: Toggle Normal Mapping (Only works for software)\n";
+	std::cout << "[F7]: Toggle Display Depth Buffer (Only works for software)\n";
+	std::cout << "[F8]: Toggle Display Bounding Boxes (Only works for software)\n";
+	std::cout << "[F9]: Cycle Cull Mode\n";
+	std::cout << "[F10]: Toggle Uniform Display Colour\n";
+	std::cout << "[F11]: Toggle Display FPS\n\n";
+
+	std::cout << "[ARROWS | WASD]: Move\n";
+	std::cout << "[LSHIFT]: Sprint\n";
+	std::cout << "[RMB + LMB]: Move Up / Down\n";
+	std::cout << "[RMB]: Rotate\n";
+	std::cout << "[LMB]: Rotate horizontally (horizontal mouse movement), move forward / backward (vertical mouse movement)\n\n";
 }
