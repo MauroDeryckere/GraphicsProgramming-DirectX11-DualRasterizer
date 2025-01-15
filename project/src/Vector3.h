@@ -11,7 +11,7 @@ namespace dae
 		float z{};
 
 		Vector3() = default;
-		Vector3(float _x, float _y, float _z);
+		constexpr Vector3(float _x, float _y, float _z) : x(_x), y(_y), z(_z) {}
 		Vector3(const Vector3& from, const Vector3& to);
 		Vector3(const Vector4& v);
 

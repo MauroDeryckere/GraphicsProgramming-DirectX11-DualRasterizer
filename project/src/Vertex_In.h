@@ -4,7 +4,7 @@
 
 namespace dae
 {
-	struct Vertex
+	struct Vertex_In
 	{
 		Vector3 position{};
 		Vector2 texcoord{};

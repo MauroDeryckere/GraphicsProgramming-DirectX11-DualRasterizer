@@ -2,6 +2,7 @@
 #include "Renderer.h"
 #include "Mesh.h"
 #include "Utils.h"
+#include "BRDF.h"
 #include "Effect.h"
 #include <execution>
 
@@ -13,7 +14,13 @@ namespace dae {
 		//Initialize
 		SDL_GetWindowSize(pWindow, &m_Width, &m_Height);
 
-		m_Camera.Initialize(45.f, {0.f, 0.f, 0.f}, float(m_Width) / float(m_Height));
+		//Create Buffers (software rasterizer)
+		m_pFrontBuffer = SDL_GetWindowSurface(pWindow);
+		m_pBackBuffer = SDL_CreateRGBSurface(0, m_Width, m_Height, 32, 0, 0, 0, 0);
+		m_pBackBufferPixels = (uint32_t*)m_pBackBuffer->pixels;
+
+		m_pDepthBufferPixels = new float[m_Width * m_Height];
+		std::fill_n(m_pDepthBufferPixels, (m_Width * m_Height), FLT_MAX);
 
 		//Initialize DirectX pipeline
 		if (InitializeDirectX() == S_OK)
@@ -50,10 +57,15 @@ namespace dae {
 		m_Meshes.emplace_back(std::make_unique<Mesh>(m_pDevice, "Resources/fireFX.obj", m_pFireEffect));
 		m_Meshes[0]->Translate({ 0.f, 0.f, 50.f });
 		m_Meshes[1]->Translate({ 0.f, 0.f, 50.f });
+
+		//Camera setup
+		m_Camera.Initialize(45.f, { 0.f, 0.f, 0.f }, static_cast<float>(m_Width) / static_cast<float>(m_Height));
 	}
 
 	Renderer::~Renderer()
 	{
+		delete[] m_pDepthBufferPixels;
+
 		// Direct X safe release macro (call release if exists)
 		SAFE_RELEASE(m_pPointSampler)
 		SAFE_RELEASE(m_pLinearSampler)
@@ -132,11 +144,11 @@ namespace dae {
 
 	void Renderer::Render() const
 	{
-		//if (m_IsSofwareRasterizerMode)
-		//{
-		//	RenderSoftware();
-		//	return;
-		//}
+		if (m_IsSofwareRasterizerMode)
+		{
+			RenderSoftware();
+			return;
+		}
 		RenderDirectXHardware();
 	}
 
@@ -165,18 +177,29 @@ namespace dae {
 
 	void Renderer::RenderSoftware() const
 	{
-		//@START
-	//Lock BackBuffer
+		//Lock BackBuffer
 		SDL_LockSurface(m_pBackBuffer);
 
 		std::fill_n(m_pDepthBufferPixels, m_Width * m_Height, FLT_MAX);
 		std::fill_n(m_pBackBufferPixels, m_Width * m_Height, 0);
 
 		//clear the background
-		SDL_FillRect(m_pBackBuffer, NULL, SDL_MapRGB(m_pBackBuffer->format, 100, 100, 100));
+		if (m_DisplayUniformClearColor)
+		{
+			SDL_FillRect(m_pBackBuffer, nullptr, SDL_MapRGB(m_pBackBuffer->format, static_cast<uint8_t>(UNIFORM_COLOR[0] * 255), static_cast<uint8_t>(UNIFORM_COLOR[1] * 255), static_cast<uint8_t>(UNIFORM_COLOR[2] * 255)));
+		}
+		else
+		{
+			SDL_FillRect(m_pBackBuffer, nullptr, SDL_MapRGB(m_pBackBuffer->format, static_cast<uint8_t>(SOFTWARE_COLOR[0] * 255), static_cast<uint8_t>(SOFTWARE_COLOR[1] * 255), static_cast<uint8_t>(SOFTWARE_COLOR[2] * 255)));
+		}
 
 		for (auto & m : m_Meshes)
 		{
+			//Hard coded to fire mesh since we don't support this in software currently.
+			if (m == m_Meshes[1])
+			{
+				continue;
+			}
 			//Meshes defined in world space before the transform function,
 			std::vector<Vector2> vertices_screenSpace{};
 			//convert each NDC coordinates to screen space / raster space
@@ -261,9 +284,192 @@ namespace dae {
 			});
 	}
 
-	void Renderer::RenderTriangle(Mesh const* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const
+	void Renderer::RenderTriangle(Mesh* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const
 	{
+		//Rasterization stage
+		const size_t idx1{ m->GetIndices()[startVertex + (2 * swapVertex)] };
+		const size_t idx2{ m->GetIndices()[startVertex + 1] };
+		const size_t idx3{ m->GetIndices()[startVertex + (!swapVertex * 2)] };
 
+		// Not a triangle when 2 vertices are equal
+		if (idx1 == idx2 || idx2 == idx3 || idx3 == idx1)
+		{
+			return;
+		}
+
+		//Frustum Culling
+		if (Utils::IsTriangleOutsideFrustum(m, static_cast<uint32_t>(idx1), static_cast<uint32_t>(idx2), static_cast<uint32_t>(idx3)))
+			return; //clipping could be applied here instead of just returning.
+
+
+		const Vector2& vert0{ vertices[idx1] };
+		const Vector2& vert1{ vertices[idx2] };
+		const Vector2& vert2{ vertices[idx3] };
+		float const totalTriangleArea{ (vert1.x - vert0.x) * (vert2.y - vert0.y) - (vert1.y - vert0.y) * (vert2.x - vert0.x) };
+
+		switch (m_CurrCullMode)
+		{
+		case CullMode::Back:
+			if (totalTriangleArea < 0.f)
+			{
+				return; // Back-facing, cull it
+			}
+			break;
+		case CullMode::Front:
+			if (totalTriangleArea > 0.f)
+			{
+				return; // Front-facing, cull it
+			}
+			break;
+		case CullMode::None: // no face culling necessary
+			break;
+		default:
+			break;
+		}
+
+		float const invTotalTriangleArea{ 1 / totalTriangleArea };
+
+		//Bounding boxes logic - only loop over pixels within the smallest possible bounding box
+		//Small margin is required to prevent "black lines"
+		Vector2 topLeft{ Vector2::Min(vert0,Vector2::Min(vert1,vert2)) - Vector2{1.f, 1.f} };
+		Vector2 topRight{ Vector2::Max(vert0,Vector2::Max(vert1,vert2)) + Vector2{1.f, 1.f} };
+
+		// prevent looping over something off-screen
+		topLeft.x = std::clamp(topLeft.x, 0.f, static_cast<float>(m_Width));
+		topLeft.y = std::clamp(topLeft.y, 0.f, static_cast<float>(m_Height));
+		topRight.x = std::clamp(topRight.x, 0.f, static_cast<float>(m_Width));
+		topRight.y = std::clamp(topRight.y, 0.f, static_cast<float>(m_Height));
+
+		for (int px{ static_cast<int>(topLeft.x) }; px < static_cast<int>(topRight.x); ++px)
+		{
+			for (int py{ static_cast<int>(topLeft.y) }; py < static_cast<int>(topRight.y); ++py)
+			{
+				ColorRGB finalColor{ colors::White };
+
+				if (m_ShowBoundingBoxes)
+				{
+					m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+						static_cast<uint8_t>(finalColor.r * 255),
+						static_cast<uint8_t>(finalColor.g * 255),
+						static_cast<uint8_t>(finalColor.b * 255));
+
+					continue;
+				}
+
+				Vector2 const pixel{ static_cast<float>(px) + .5f, static_cast<float>(py) + .5f };
+
+				//Calculate barycentric coordinates
+				float const weight0{ Vector2::Cross((pixel - vert1), (vert1 - vert2)) * invTotalTriangleArea };
+				float const weight1{ Vector2::Cross((pixel - vert2), (vert2 - vert0)) * invTotalTriangleArea };
+				float const weight2{ Vector2::Cross((pixel - vert0), (vert0 - vert1)) * invTotalTriangleArea };
+
+				// Not in triangle
+				if (weight0 < 0.f || weight1 < 0.f || weight2 < 0.f)
+					continue;
+
+				float const depth0{ m->GetVertices_Out()[idx1].position.z };
+				float const depth1{ m->GetVertices_Out()[idx2].position.z };
+				float const depth2{ m->GetVertices_Out()[idx3].position.z };
+				float const interpolatedDepth{ 1.f / (weight0 * (1.f / depth0) + weight1 * (1.f / depth1) + weight2 * (1.f / depth2)) };
+
+				if (interpolatedDepth < 0.f || interpolatedDepth > 1.f || m_pDepthBufferPixels[px + py * m_Width] < interpolatedDepth)
+				{
+					continue;
+				}
+				m_pDepthBufferPixels[px + py * m_Width] = interpolatedDepth;
+
+				if (m_ShowDepthBuffer)
+				{
+					float const remap{ Utils::DepthRemap(interpolatedDepth, .985f, 1.f) };
+					finalColor = ColorRGB{ (1.f - remap) * 5,   (1.f - remap) * 5, 1.f };
+				}
+				else // Pixel shading
+				{
+					Vertex_Out pixelToShade{};
+					pixelToShade.position = { static_cast<float>(px), static_cast<float>(py), interpolatedDepth,interpolatedDepth };
+
+					Vector3 const viewDir{ (interpolatedDepth * (weight0 * (m->GetVertices_Out()[idx1].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx1].position.w +
+															weight1 * (m->GetVertices_Out()[idx2].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx2].position.w +
+															weight2 * (m->GetVertices_Out()[idx3].position - m_Camera.origin.ToPoint4()) / m->GetVertices_Out()[idx3].position.w) / 3).Normalized() };
+
+					pixelToShade.texcoord = interpolatedDepth * ((weight0 * m->GetVertices()[idx1].texcoord) / depth0
+						+ (weight1 * m->GetVertices()[idx2].texcoord) / depth1
+						+ (weight2 * m->GetVertices()[idx3].texcoord) / depth2);
+					pixelToShade.normal = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].normal / m->GetVertices_Out()[idx1].position.w
+																	  + weight1 * m->GetVertices_Out()[idx2].normal / m->GetVertices_Out()[idx2].position.w +
+																		weight2 * m->GetVertices_Out()[idx3].normal / m->GetVertices_Out()[idx3].position.w) } / 3;
+					pixelToShade.tangent = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].tangent / m->GetVertices_Out()[idx1].position.w +
+																		 weight1 * m->GetVertices_Out()[idx2].tangent / m->GetVertices_Out()[idx2].position.w +
+																		 weight2 * m->GetVertices_Out()[idx3].tangent / m->GetVertices_Out()[idx3].position.w) } / 3;
+
+
+					finalColor = PixelShading(m, pixelToShade, viewDir);
+				}
+
+
+				//Update Color in Buffer
+				finalColor.MaxToOne();
+				m_pBackBufferPixels[px + (py * m_Width)] = SDL_MapRGB(m_pBackBuffer->format,
+					static_cast<uint8_t>(finalColor.r * 255),
+					static_cast<uint8_t>(finalColor.g * 255),
+					static_cast<uint8_t>(finalColor.b * 255));
+			}
+		}
+	}
+
+	ColorRGB Renderer::PixelShading(Mesh const* m, Vertex_Out const& v, Vector3 const& viewDir) const
+	{
+		//Global light & other defines
+		Vector3 static constexpr LIGHT_DIRECTION{ Vector3{.577f, -.577f, .577f} };
+		ColorRGB static constexpr AMBIENT_COLOR{ 0.03f, 0.03f, 0.03f };
+		float static constexpr SHININESS{ 25.0f };
+		float static constexpr KD{ 7.f };
+
+		ColorRGB result{ };
+
+		// Normal mapping
+		Vector3 const biNormal = Vector3::Cross(v.normal, v.tangent);
+		Matrix const tangentSpaceAxis = { v.tangent, biNormal, v.normal, Vector3::Zero };
+
+		ColorRGB const normalColor = m_pVehicleNormalTexture->Sample(v.texcoord);
+		Vector3 sampledNormal = { normalColor.r, normalColor.g, normalColor.b }; //range [0, 1]
+		sampledNormal = 2.f * sampledNormal - Vector3{ 1, 1, 1 }; //[0, 1] to [-1, 1]
+		sampledNormal = tangentSpaceAxis.TransformVector(sampledNormal).Normalized();
+
+
+		//calculate observed area
+		float const observedArea{ m_UseNormalMapping ? Utils::CalculateObservedArea(sampledNormal,LIGHT_DIRECTION)
+													 : Utils::CalculateObservedArea(v.normal.Normalized(), LIGHT_DIRECTION) };
+		switch (m_CurrShadingMode)
+		{
+		case ShadingMode::ObservedArea:
+		{
+			result = ColorRGB{ observedArea, observedArea, observedArea };
+			break;
+		}
+		case ShadingMode::Diffuse:
+		{
+			result = BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) * observedArea;
+			break;
+		}
+		case ShadingMode::Specular:
+		{
+			result = observedArea * BRDF::Phong(m_pVehicleSpecularTexture->Sample(v.texcoord).r, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
+			break;
+		}
+		case ShadingMode::Combined:
+		{
+			auto const lambert{ BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) };
+			ColorRGB const phong = BRDF::Phong(m_pVehicleSpecularTexture->Sample(v.texcoord).r, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
+
+			result = observedArea * lambert + phong;
+			break;
+		}
+		default:
+			break;
+		}
+		result += AMBIENT_COLOR;
+		return result;
 	}
 
 	HRESULT Renderer::InitializeDirectX()

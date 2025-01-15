@@ -2,7 +2,7 @@
 
 #include "pch.h"
 #include "Texture.h"
-#include "Vertex.h"
+#include "Vertex_In.h"
 #include "Matrix.h"
 
 namespace dae
@@ -79,12 +79,8 @@ namespace dae
 		void SetCameraPosition(const Vector3& pos)
 		{
 			assert(m_pCameraPosition);
-			float vec[3];
-			vec[0] = pos.x;
-			vec[1] = pos.y;
-			vec[2] = pos.z;
-			//reinterpret_cast<const float*>(&pos)
-			m_pCameraPosition->SetFloatVector(vec);
+			
+			m_pCameraPosition->SetFloatVector(reinterpret_cast<const float*>(&pos));
 		}
 
 		//Textures

@@ -134,13 +134,13 @@ namespace dae
 			switch (m_CurrCullMode)
 			{
 			case CullMode::Back:
-				std::cout << "Shading mode -> Back\n";
+				std::cout << "Culling mode -> Back\n";
 				break;
 			case CullMode::Front:
-				std::cout << "Shading mode -> Front\n";
+				std::cout << "Culling mode -> Front\n";
 				break;
 			case CullMode::None:
-				std::cout << "Shading mode -> None\n";
+				std::cout << "Cullings mode -> None\n";
 				break;
 			default: break;
 			}
@@ -252,8 +252,8 @@ namespace dae
 		//Software
 		void RenderSoftware() const;
 		void VertexTransformationFunction(std::vector<Vector2>& screenSpace, Mesh* mesh) const;
-		void RenderTriangle(Mesh const* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const;
+		void RenderTriangle(Mesh* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const;
 
-		[[nodiscard]] ColorRGB PixelShading(Mesh const* m, Vertex_Out const& v, Vector3 const& viewDir);
+		[[nodiscard]] ColorRGB PixelShading(Mesh const* m, Vertex_Out const& v, Vector3 const& viewDir) const;
 	};
 }

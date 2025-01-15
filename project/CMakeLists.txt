@@ -11,7 +11,7 @@ set(SOURCES
 )
 
 # Create the executable
-add_executable(${PROJECT_NAME} ${SOURCES} "src/Effect.h" "src/Mesh.h" "src/Camera.h" "src/Vertex.h" "src/Texture.h")
+add_executable(${PROJECT_NAME} ${SOURCES} "src/Effect.h" "src/Mesh.h" "src/Camera.h" "src/Vertex_In.h" "src/Texture.h" "src/BRDF.h" "src/Mesh.cpp")
 
 # only needed if header files are not in same directory as source files
 # target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

@@ -13,17 +13,22 @@ namespace dae
 		Texture(std::filesystem::path const& path, ID3D11Device* pDevice)
 		{
 			assert(std::filesystem::exists(path));
-			assert(pDevice);
 
-			auto pSurface = IMG_Load(path.string().c_str());
-			if (!pSurface)
+			assert(std::filesystem::exists(path));
+
+			m_pSurface = IMG_Load(path.string().c_str());
+			if (!m_pSurface)
 				throw std::runtime_error("Failed to load texture from path: " + path.string());
+
+			m_pSurfacePixels = reinterpret_cast<uint32_t*>(m_pSurface->pixels);
+
+			assert(pDevice);
 
 
 			DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 			D3D11_TEXTURE2D_DESC desc{};
-			desc.Width = pSurface->w;
-			desc.Height = pSurface->h;
+			desc.Width = m_pSurface->w;
+			desc.Height = m_pSurface->h;
 			desc.MipLevels = 1;
 			desc.ArraySize = 1;
 			desc.Format = format;
@@ -35,9 +40,9 @@ namespace dae
 			desc.MiscFlags = 0;
 
 			D3D11_SUBRESOURCE_DATA initData{};
-			initData.pSysMem = pSurface->pixels;
-			initData.SysMemPitch = static_cast<UINT>(pSurface->pitch);
-			initData.SysMemSlicePitch = static_cast<UINT>(pSurface->h * pSurface->pitch);
+			initData.pSysMem = m_pSurface->pixels;
+			initData.SysMemPitch = static_cast<UINT>(m_pSurface->pitch);
+			initData.SysMemSlicePitch = static_cast<UINT>(m_pSurface->h * m_pSurface->pitch);
 			
 			HRESULT hr = pDevice->CreateTexture2D(&desc, &initData, &m_pResource);
 			
@@ -52,11 +57,13 @@ namespace dae
 			hr = pDevice->CreateShaderResourceView(m_pResource, &srvDesc, &m_pShaderResourceView);
 			if (FAILED(hr))
 				throw std::runtime_error("Failed to create shader resource view from path: " + path.string());
-			
-			SDL_FreeSurface(pSurface);
 		}
 		~Texture()
 		{
+			if (m_pSurface)
+			{
+				SDL_FreeSurface(m_pSurface);
+			}
 			SAFE_RELEASE(m_pShaderResourceView)
 			SAFE_RELEASE(m_pResource)
 		}
@@ -75,33 +82,24 @@ namespace dae
 		Texture& operator=(const Texture&) = delete;
 		Texture& operator=(Texture&&) noexcept = delete;
 
-		//ColorRGB Sample(const Vector2& uv) const
-		//{
-			//D3D11_TEXTURE2D_DESC desc{};
-			//m_pResource->GetDesc(&desc);
+		ColorRGB Sample(const Vector2& uv) const
+		{
+			uint32_t const x{ static_cast<uint32_t>(uv.x * m_pSurface->w) };
+			uint32_t const y{ static_cast<uint32_t>(uv.y * m_pSurface->h) };
 
-			//D3D11_MAPPED_SUBRESOURCE mappedResource{};
-			//m_pResource->Map(0, D3D11_MAP_READ, 0, &mappedResource);
-
-			//const UINT x = static_cast<UINT>(uv.x * desc.Width);
-			//const UINT y = static_cast<UINT>(uv.y * desc.Height);
-
-			//const UINT index = y * mappedResource.RowPitch + x * 4;
-			//const BYTE* pPixel = static_cast<BYTE*>(mappedResource.pData) + index;
-
-			//ColorRGB color{};
-			//color.r = pPixel[0] / 255.f;
-			//color.g = pPixel[1] / 255.f;
-			//color.b = pPixel[2] / 255.f;
-
-			//m_pResource->Unmap(0);
-
-			//return color;
-
-		// }
+			uint8_t r{};
+			uint8_t g{};
+			uint8_t b{};
+			SDL_GetRGB(m_pSurfacePixels[(y * m_pSurface->w) + x], m_pSurface->format, &r, &g, &b);
+			static constexpr float normalizedFactor{ 1 / 255.f };
+			return { r * normalizedFactor, g * normalizedFactor, b * normalizedFactor };
+		 }
 		
 
 	private:
+		SDL_Surface* m_pSurface{ nullptr };
+		uint32_t* m_pSurfacePixels{ nullptr };
+
 		ID3D11Texture2D* m_pResource{};
 		ID3D11ShaderResourceView* m_pShaderResourceView{};
 	};
