@@ -26,11 +26,11 @@ namespace dae {
 		if (InitializeDirectX() == S_OK)
 		{
 			m_IsDirectXInitialized = true;
-			std::cout << "DirectX is initialized and ready!" << std::endl;
+			std::cout << GREEN << "DirectX is initialized and ready!" << RESET << std::endl;
 		}
 		else
 		{
-			std::cout << "DirectX initialization failed!" << std::endl;
+			std::cout << RED << "DirectX initialization failed!" << RESET << std::endl;
 		}
 
 		//Intialize textures
