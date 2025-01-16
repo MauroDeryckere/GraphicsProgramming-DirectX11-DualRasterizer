@@ -92,6 +92,8 @@ namespace dae {
 
 	void Renderer::ChangeSamplerState() noexcept
 	{
+		if (m_IsSofwareRasterizerMode)
+			return;
 		if (!m_IsDirectXInitialized)
 		{
 			return;

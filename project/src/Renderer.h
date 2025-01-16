@@ -55,6 +55,8 @@ namespace dae
 		// When F3 is pressed, switch beteen displaying or not displaying the fire mesh (only for the hardware rasterizer currently)
 		void ToggleFireMesh() noexcept
 		{
+			if (m_IsSofwareRasterizerMode)
+				return;
 			m_DisplayFireMesh = !m_DisplayFireMesh;
 			if (m_DisplayFireMesh)
 			{
@@ -68,6 +70,8 @@ namespace dae
 		// When F5 is pressed change to the next shading mode (only for the software rasterizer currently)
 		void ChangeShadingMode() noexcept
 		{
+			if (!m_IsSofwareRasterizerMode)
+				return;
 			auto curr{ static_cast<uint8_t>(m_CurrShadingMode) };
 			++curr %= static_cast<uint8_t>(ShadingMode::COUNT);
 
@@ -93,6 +97,9 @@ namespace dae
 		//When F6 is pressed, toggle the normal map (only for the software rasterizer currently)
 		void ToggleNormalMap() noexcept
 		{
+			if (!m_IsSofwareRasterizerMode)
+				return;
+
 			m_UseNormalMapping = !m_UseNormalMapping;
 			if (m_UseNormalMapping)
 			{
@@ -104,6 +111,9 @@ namespace dae
 		// When F7 is pressed, toggle the depth buffer visualization (only for the software rasterizer currently)
 		void ToggleDisplayDepthBuffer() noexcept
 		{
+			if (!m_IsSofwareRasterizerMode)
+				return;
+
 			m_ShowDepthBuffer = !m_ShowDepthBuffer;
 			if (m_ShowDepthBuffer)
 			{
@@ -115,6 +125,9 @@ namespace dae
 		// When F8 is pressed, toggle the bounding box visualization (only for the software rasterizer currently)
 		void ToggleBoundingBoxes() noexcept
 		{
+			if (!m_IsSofwareRasterizerMode)
+				return;
+
 			m_ShowBoundingBoxes = !m_ShowBoundingBoxes;
 			if (m_ShowBoundingBoxes)
 			{
