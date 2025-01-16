@@ -518,7 +518,7 @@ namespace dae {
 		UINT i{ 0 };
 		size_t maxDedicatedVideoMemory{ 0 };
 
-		std::cout << "Selecting adapter\n";
+		std::cout << GREEN << "Selecting adapter\n" << RESET;
 
 		while (pFactory->EnumAdapters(i, &pAdapter) != DXGI_ERROR_NOT_FOUND) 
 		{
@@ -547,11 +547,11 @@ namespace dae {
 		{
 			DXGI_ADAPTER_DESC selectedDesc;
 			selectedAdapter->GetDesc(&selectedDesc);
-			std::wcout << L"\nSelected Adapter: " << selectedDesc.Description <<"\n\n";
+			std::wcout << GREEN << L"\nSelected Adapter: " << selectedDesc.Description <<"\n\n" << RESET;
 		}
 		else 
 		{
-			std::cerr << "\nNo suitable adapter found!\n\n";
+			std::cout << RED << "\nNo suitable adapter found!\n\n" << RESET;
 			return false;
 		}
 

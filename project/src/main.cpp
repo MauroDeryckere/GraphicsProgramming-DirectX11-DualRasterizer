@@ -166,7 +166,7 @@ void PrintSettings() noexcept
 	std::cout << "[F10]: Toggle Uniform Display Colour\n";
 	std::cout << "[F11]: Toggle Display FPS\n\n";
 
-	std::cout << GREEN << "[ARROWS | WASD]: Move\n";
+	std::cout << "[ARROWS | WASD]: Move\n";
 	std::cout << "[LSHIFT]: Sprint\n";
 	std::cout << "[RMB + LMB]: Move Up / Down\n";
 	std::cout << "[RMB]: Rotate\n";
