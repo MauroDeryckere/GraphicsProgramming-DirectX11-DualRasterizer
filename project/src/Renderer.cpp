@@ -67,11 +67,6 @@ namespace dae {
 		delete[] m_pDepthBufferPixels;
 
 		// Direct X safe release macro (call release if exists)
-		SAFE_RELEASE(m_pPointSampler)
-		SAFE_RELEASE(m_pLinearSampler)
-		SAFE_RELEASE(m_pAnisotropicSampler)
-
-
 		SAFE_RELEASE(m_pRenderTargetView)
 		SAFE_RELEASE(m_pRenderTargetBuffer)
 
@@ -104,28 +99,23 @@ namespace dae {
 		++newId %= static_cast<uint8_t>(SamplerState::COUNT);
 		m_SamplerState = static_cast<SamplerState>(newId);
 
-		ID3D11SamplerState* newSampler = nullptr;	
-
 		switch (m_SamplerState)
 		{
 		case SamplerState::Point: 
-			newSampler = m_pPointSampler;
 			std::cout << "Sampler state -> PointSampler \n";
 			break;
 		case SamplerState::Linear:
-			newSampler = m_pLinearSampler;
 			std::cout << "Sampler state -> LinearSampler \n";
 			break;
 		case SamplerState::Anisotropic:
-			newSampler = m_pAnisotropicSampler;
 			std::cout << "Sampler state -> AnisotropicSampler \n";
 			break;
 		default: break;
 		}
 
-		if (newSampler)
+		for (auto& m : m_Meshes)
 		{
-			m_pDeviceContext->PSSetSamplers(0, 1, &newSampler);
+			m->SetSamplingMode(newId);
 		}
 	}
 
@@ -260,7 +250,6 @@ namespace dae {
 			mesh->GetVertices_Out_Ref().begin(),
 			[&](auto const& v) {
 				Vertex_Out vOut{};
-				//vOut.color = v.color;
 				vOut.texcoord = v.texcoord;
 
 				vOut.position = m.TransformPoint(v.position.ToPoint4());
@@ -656,43 +645,6 @@ namespace dae {
 		vp.MinDepth = 0.0f;
 		vp.MaxDepth = 1.0f;
 		m_pDeviceContext->RSSetViewports(1, &vp);
-
-
-		//Initialize sampler states
-		// Point sampler
-		D3D11_SAMPLER_DESC pointDesc = {};
-		pointDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_POINT;
-		pointDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-		pointDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-		pointDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-		pointDesc.MinLOD = 0.0f;
-		pointDesc.MaxLOD = D3D11_FLOAT32_MAX;
-		result = m_pDevice->CreateSamplerState(&pointDesc, &m_pPointSampler);
-		if (FAILED(result))
-		{
-			return result;
-		}
-
-		// Linear sampler
-		D3D11_SAMPLER_DESC linearDesc = pointDesc; // Copy base settings
-		linearDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-		result = m_pDevice->CreateSamplerState(&linearDesc, &m_pLinearSampler);
-		if (FAILED(result))
-		{
-			return result;
-		}
-
-		// Anisotropic sampler
-		D3D11_SAMPLER_DESC anisotropicDesc = pointDesc; // Copy base settings
-		anisotropicDesc.Filter = D3D11_FILTER_ANISOTROPIC;
-		anisotropicDesc.MaxAnisotropy = 16;
-		result = m_pDevice->CreateSamplerState(&anisotropicDesc, &m_pAnisotropicSampler);
-		if (FAILED(result))
-		{
-			return result;
-		}
-
-		m_pDeviceContext->PSSetSamplers(0, 1, &m_pPointSampler);
 
 		return result;
 	}

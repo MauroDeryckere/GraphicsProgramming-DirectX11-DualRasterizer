@@ -21,10 +21,26 @@ Texture2D gNormalMap : NormalMap;
 Texture2D gSpecularMap : SpecularMap;
 Texture2D gGlossinessMap : GlossinessMap;
 
-// Sampling
-SamplerState gSampleState : register(s0);
-
-//TODO allow swapping betwene different cullmodes using this state 
+    //Sampling
+    SamplerState gSamplePoint : SampleState
+    {
+        Filter = MIN_MAG_MIP_POINT;
+        AddressU = Wrap;
+        AddressV = Wrap;
+    };
+    SamplerState gSampleLinear : SampleState
+    {
+        Filter = MIN_MAG_MIP_LINEAR;
+        AddressU = Wrap;
+        AddressV = Wrap;
+    };
+    SamplerState gSampleAni : SampleState
+    {
+        Filter = ANISOTROPIC;
+        AddressU = Wrap;
+        AddressV = Wrap;
+        MaxAnisotropy = 16;
+    };
 //Rasterizer
 RasterizerState gRasterizerState
 {
@@ -112,9 +128,9 @@ VS_OUTPUT VS(VS_INPUT input)
 }
 
 // Pixel Shader (phong)
-float4 PS(VS_OUTPUT input) : SV_TARGET
+float4 PS(VS_OUTPUT input, SamplerState s) : SV_TARGET
 { 
-    const float3 normalMap = 2.0f * gNormalMap.Sample(gSampleState, input.TexCoord).rgb - float3(1.0f, 1.0f, 1.0f);
+    const float3 normalMap = 2.0f * gNormalMap.Sample(s, input.TexCoord).rgb - float3(1.0f, 1.0f, 1.0f);
     const float3 normal = mul(normalMap, float3x4(float4(input.Tangent, 0.0f), // TBN matrix
                                                   float4(cross(input.Normal, input.Tangent), 0.0f),
                                                   float4(input.Normal, 0.0)));
@@ -127,9 +143,9 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     }
     
     const float3 viewDir = normalize(input.WorldPosition.xyz - gCameraPosition); 
-    const float4 lambert = CalculateLambert(gLightIntensity, gDiffuseMap.Sample(gSampleState, input.TexCoord));
-    const float4 specular = gSpecularMap.Sample(gSampleState, input.TexCoord) * CalculatePhong(1.0f, 
-                                                                                gShininess * gGlossinessMap.Sample(gSampleState, input.TexCoord).b, 
+    const float4 lambert = CalculateLambert(gLightIntensity, gDiffuseMap.Sample(s, input.TexCoord));
+    const float4 specular = gSpecularMap.Sample(s, input.TexCoord) * CalculatePhong(1.0f, 
+                                                                                gShininess * gGlossinessMap.Sample(s, input.TexCoord).b, 
                                                                                 gLightDirection, 
                                                                                 viewDir, 
                                                                                 input.Normal);
@@ -143,16 +159,46 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     return observedArea * lambert + specular + gAmbientColor;
 }
 
+float4 PS_P(VS_OUTPUT input) : SV_TARGET { return PS(input, gSamplePoint); }
+float4 PS_L(VS_OUTPUT input) : SV_TARGET { return PS(input, gSampleLinear); }
+float4 PS_A(VS_OUTPUT input) : SV_TARGET { return PS(input, gSampleAni); }
+
 // Technique 
-technique11 DefaultTechnique
+technique11 PointSampling
 {
     pass P0
     {
         SetRasterizerState(gRasterizerState);
         SetDepthStencilState(gDepthStencilState, 0);
-        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something elses
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
         SetVertexShader(CompileShader(vs_5_0, VS()));
         SetGeometryShader( NULL );
-        SetPixelShader( CompileShader( ps_5_0, PS() ) );
+        SetPixelShader(CompileShader(ps_5_0, PS_P()));
+    }
+}
+
+technique11 LinearSampling
+{
+    pass P0
+    {
+        SetRasterizerState(gRasterizerState);
+        SetDepthStencilState(gDepthStencilState, 0);
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
+        SetVertexShader(CompileShader(vs_5_0, VS()));
+        SetGeometryShader(NULL);
+        SetPixelShader(CompileShader(ps_5_0, PS_L()));
+    }
+}
+
+technique11 AniSampling
+{
+    pass P0
+    {
+        SetRasterizerState(gRasterizerState);
+        SetDepthStencilState(gDepthStencilState, 0);
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
+        SetVertexShader(CompileShader(vs_5_0, VS()));
+        SetGeometryShader(NULL);
+        SetPixelShader(CompileShader(ps_5_0, PS_A()));
     }
 }

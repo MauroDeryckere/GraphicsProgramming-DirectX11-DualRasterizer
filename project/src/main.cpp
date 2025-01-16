@@ -44,7 +44,7 @@ int main(int argc, char* args[])
 	const auto pTimer = new Timer();
 	const auto pRenderer = new Renderer(pWindow);
 
-	static bool displayFPS = true;
+	bool displayFPS = false;
 	//Start loop
 	pTimer->Start();
 	float printTimer = 0.f;

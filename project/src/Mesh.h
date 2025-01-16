@@ -26,7 +26,15 @@ namespace dae
 		void Render(ID3D11DeviceContext* pDeviceContext) const
 		{
 			//Set primitive topology
-			pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+			switch (m_PrimitiveTopology)
+			{
+			case PrimitiveTopology::TriangleList:
+				pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+				break;
+			case PrimitiveTopology::TriangleStrip:
+				pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+				break;
+			}
 
 			//Set input layout
 			pDeviceContext->IASetInputLayout(m_pInputLayout);
@@ -98,6 +106,19 @@ namespace dae
 		[[nodiscard]] Matrix const& GetWorldMatrix() const noexcept
 		{
 			return m_WorldMatrix;
+		}
+
+		void SetSamplingMode(uint8_t mode) noexcept
+		{
+			assert(m_pEffect);
+			m_pEffect->SetSamplingMode(mode);
+
+		}
+
+		void SetCullingMode(ID3D11Device* pDevice, uint8_t mode) noexcept
+		{
+			assert(m_pEffect);
+			m_pEffect->SetCullingMode(pDevice, mode);
 		}
 
 		Mesh(const Mesh&) = delete;

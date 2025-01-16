@@ -7,14 +7,31 @@ float3 gCameraPosition = float3(0, 0, 0);
 
 Texture2D gDiffuseMap : DiffuseMap;
 
-//Sampling
-SamplerState gSampleState : register(s0);
-
 // RasterizerState
 RasterizerState gRasterizerState
 {
     CullMode = none;
     FrontCounterClockwise = false;
+};
+
+//Sampling
+SamplerState gSamplePoint : SampleState
+{
+    Filter = MIN_MAG_MIP_POINT;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+SamplerState gSampleLinear : SampleState
+{
+    Filter = MIN_MAG_MIP_LINEAR;
+    AddressU = Wrap;
+    AddressV = Wrap;
+};
+SamplerState gSampleAni : SampleState
+{
+    Filter = ANISOTROPIC;
+    AddressU = Wrap;
+    AddressV = Wrap;
 };
 
 // Blending
@@ -85,21 +102,52 @@ VS_OUTPUT VS(VS_INPUT input)
 }
 
 // Pixel Shader 
-float4 PS(VS_OUTPUT input) : SV_TARGET
+float4 PS(VS_OUTPUT input, SamplerState s) : SV_TARGET
 {
-    return gDiffuseMap.Sample(gSampleState, input.TexCoord);
+    return gDiffuseMap.Sample(s, input.TexCoord);
 }
 
 // Technique 
-technique11 DefaultTechnique
+float4 PS_P(VS_OUTPUT input) : SV_TARGET { return PS(input, gSamplePoint); }
+float4 PS_L(VS_OUTPUT input) : SV_TARGET { return PS(input, gSampleLinear); }
+float4 PS_A(VS_OUTPUT input) : SV_TARGET { return PS(input, gSampleAni); }
+
+// Technique 
+technique11 PointSampling
 {
     pass P0
     {
         SetRasterizerState(gRasterizerState);
         SetDepthStencilState(gDepthStencilState, 0);
-        SetBlendState(gBlendState, float4(0.f, 0.f, 0.f, 0.f), 0xFFFFFFF);
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
         SetVertexShader(CompileShader(vs_5_0, VS()));
         SetGeometryShader(NULL);
-        SetPixelShader(CompileShader(ps_5_0, PS()));
+        SetPixelShader(CompileShader(ps_5_0, PS_P()));
+    }
+}
+
+technique11 LinearSampling
+{
+    pass P0
+    {
+        SetRasterizerState(gRasterizerState);
+        SetDepthStencilState(gDepthStencilState, 0);
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
+        SetVertexShader(CompileShader(vs_5_0, VS()));
+        SetGeometryShader(NULL);
+        SetPixelShader(CompileShader(ps_5_0, PS_L()));
+    }
+}
+
+technique11 AniSampling
+{
+    pass P0
+    {
+        SetRasterizerState(gRasterizerState);
+        SetDepthStencilState(gDepthStencilState, 0);
+        SetBlendState(gBlendState, float4(0.0f, 0.0f, 0.0f, 0.0f), 0xFFFFFFFF); // it's necessary to reset this since the other shaders set it to something else
+        SetVertexShader(CompileShader(vs_5_0, VS()));
+        SetGeometryShader(NULL);
+        SetPixelShader(CompileShader(ps_5_0, PS_A()));
     }
 }

@@ -6,6 +6,8 @@
 #include "Effect.h"
 #include <memory>
 
+#include "Mesh.h"
+
 struct SDL_Window;
 struct SDL_Surface;
 
@@ -157,6 +159,20 @@ namespace dae
 				break;
 			default: break;
 			}
+
+			if (m_IsSofwareRasterizerMode || !m_IsDirectXInitialized)
+			{
+				return;
+			}
+
+			for(auto& m : m_Meshes)
+			{
+				if (m == m_Meshes[1])
+				{
+					continue;
+				}
+				m->SetCullingMode(m_pDevice, curr);
+			}
 		}
 		// When F10 is pressed, tooggle to display the uniform clear color (or not)
 		void ToggleUniformClearColor() noexcept
@@ -197,11 +213,6 @@ namespace dae
 		ID3D11Resource* m_pRenderTargetBuffer{ nullptr };
 		ID3D11RenderTargetView* m_pRenderTargetView{ nullptr };
 
-		//Direct X Samplers
-		ID3D11SamplerState* m_pPointSampler{ nullptr };
-		ID3D11SamplerState* m_pLinearSampler{ nullptr };
-		ID3D11SamplerState* m_pAnisotropicSampler{ nullptr };
-
 		//Effects
 		// would be shared with resource manager
 		std::shared_ptr<BaseEffect> m_pVehicleEffect{ nullptr };
@@ -222,13 +233,6 @@ namespace dae
 		bool m_IsSofwareRasterizerMode{ false };
 		bool m_IsRotationMode{ true };
 		bool m_DisplayFireMesh{ true };
-		enum class SamplerState : uint8_t
-		{
-			Point = 0,
-			Linear = 1,
-			Anisotropic = 2,
-			COUNT
-		};
 		SamplerState m_SamplerState{ SamplerState::Point };
 		enum class ShadingMode : uint8_t
 		{
@@ -242,13 +246,6 @@ namespace dae
 		bool m_UseNormalMapping{ true };
 		bool m_ShowDepthBuffer{ false };
 		bool m_ShowBoundingBoxes{ false };
-		enum class CullMode : uint8_t
-		{
-			Back = 0,
-			Front = 1,
-			None = 2,
-			COUNT
-		};
 		CullMode m_CurrCullMode{ CullMode::Back };
 		bool m_DisplayUniformClearColor{ false };
 

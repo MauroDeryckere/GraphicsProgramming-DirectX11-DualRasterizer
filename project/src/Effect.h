@@ -7,6 +7,21 @@
 
 namespace dae
 {
+	enum class SamplerState : uint8_t
+	{
+		Point = 0,
+		Linear = 1,
+		Anisotropic = 2,
+		COUNT
+	};
+	enum class CullMode : uint8_t
+	{
+		Back = 0,
+		Front = 1,
+		None = 2,
+		COUNT
+	};
+
 	class BaseEffect
 	{
 	public:
@@ -17,7 +32,7 @@ namespace dae
 			assert(m_pEffect);
 
 			//m_pTechnique = m_pEffect->GetTechniqueByIndex(0);
-			m_pTechnique = m_pEffect->GetTechniqueByName("DefaultTechnique");
+			m_pTechnique = m_pEffect->GetTechniqueByName("PointSampling");
 			if (!m_pTechnique->IsValid())
 			{
 				std::wcout << L"Effect::Effect() > GetTechniqueByName() failed" << std::endl;
@@ -44,6 +59,12 @@ namespace dae
 			if (!m_pDiffuseMapVariable->IsValid())
 			{
 				std::wcout << L"Effect variable 'gDiffuseMap' not valid\n";
+			}
+
+			m_pRasterizerVariable = m_pEffect->GetVariableByName("gRasterizerState")->AsRasterizer();
+			if (!m_pRasterizerVariable->IsValid())
+			{
+				std::wcout << L"m_pRasterizerVariable not valid!\n";
 			}
 		}
 		virtual ~BaseEffect()
@@ -93,6 +114,64 @@ namespace dae
 				m_pDiffuseMapVariable->SetResource(pDiffuseTexture->GetShaderResourceView());
 			}
 		}
+
+		void SetCullingMode(ID3D11Device* pDevice, uint8_t mode) noexcept
+		{
+			D3D11_RASTERIZER_DESC desc{};
+			desc.FillMode = D3D11_FILL_SOLID;
+			desc.FrontCounterClockwise = false;
+
+			CullMode const m{ static_cast<CullMode>(mode) };
+			switch (m)
+			{
+				case CullMode::Front:
+				{
+					desc.CullMode = D3D11_CULL_FRONT;
+					break;
+				}
+				case CullMode::Back:
+				{
+					desc.CullMode = D3D11_CULL_BACK;
+					break;
+				}
+				case CullMode::None:
+				{
+					desc.CullMode = D3D11_CULL_NONE;
+					break;
+				}
+				default: break;
+			}
+			ID3D11RasterizerState* pState{ nullptr };
+			HRESULT hr{ pDevice->CreateRasterizerState(&desc, &pState) };
+			assert(SUCCEEDED(hr));
+
+			hr = m_pRasterizerVariable->SetRasterizerState(0, pState);
+			assert(SUCCEEDED(hr));
+
+			SAFE_RELEASE(pState)
+		}
+
+		void SetSamplingMode(uint8_t mode)
+		{
+			SamplerState const m{ static_cast<SamplerState>(mode) };
+			switch (m)
+			{
+			case SamplerState::Point:
+				m_pTechnique = m_pEffect->GetTechniqueByName("PointSampling");
+				assert(m_pTechnique->IsValid());
+				break;
+			case SamplerState::Linear:
+				m_pTechnique = m_pEffect->GetTechniqueByName("LinearSampling");
+				assert(m_pTechnique->IsValid());
+				break;
+			case SamplerState::Anisotropic:
+				m_pTechnique = m_pEffect->GetTechniqueByName("AniSampling");
+				assert(m_pTechnique->IsValid());
+				break;
+			default: break;
+			}
+		}
+
 		virtual void SetGlossinessTexture(Texture*) {}
 		virtual void SetSpecularTexture(Texture*) {}
 		virtual void SetNormalTexture(Texture*){}
@@ -105,7 +184,8 @@ namespace dae
 		ID3DX11EffectMatrixVariable* m_pWorldViewProjection{ nullptr };
 		ID3DX11EffectVectorVariable* m_pCameraPosition{ nullptr };
 
-		ID3DX11EffectShaderResourceVariable* m_pDiffuseMapVariable{};
+		ID3DX11EffectShaderResourceVariable* m_pDiffuseMapVariable{ nullptr };
+		ID3DX11EffectRasterizerVariable* m_pRasterizerVariable{ nullptr };
 	private: 
 		ID3DX11Effect* LoadEffect(ID3D11Device* pDevice, std::wstring const& assetFile)
 		{
