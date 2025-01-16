@@ -448,18 +448,31 @@ namespace dae {
 		}
 		case ShadingMode::Diffuse:
 		{
+			if (observedArea <= 0)
+			{
+				return{ colors::Black };
+			}
 			result = BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) * observedArea;
 			break;
 		}
 		case ShadingMode::Specular:
 		{
+			if (observedArea <= 0)
+			{
+				return{ colors::Black };
+			}
 			result = observedArea * m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, m_UseNormalMapping ? sampledNormal : v.normal);
 			break;
 		}
 		case ShadingMode::Combined:
 		{
+			if (observedArea <= 0)
+			{
+				return{ colors::Black };
+			}
 			auto const lambert{ BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) };
 			ColorRGB const phong = m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r,LIGHT_DIRECTION, viewDir, m_UseNormalMapping ? sampledNormal : v.normal);
+
 
 			result = observedArea * lambert + phong;
 			break;

@@ -160,7 +160,7 @@ namespace dae
 			default: break;
 			}
 
-			if (m_IsSofwareRasterizerMode || !m_IsDirectXInitialized)
+			if (!m_IsDirectXInitialized)
 			{
 				return;
 			}
