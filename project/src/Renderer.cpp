@@ -56,7 +56,7 @@ namespace dae {
 		m_Meshes.emplace_back(std::make_unique<Mesh>(m_pDevice, "Resources/vehicle.obj", m_pVehicleEffect));
 		m_Meshes.emplace_back(std::make_unique<Mesh>(m_pDevice, "Resources/fireFX.obj", m_pFireEffect));
 		m_Meshes[0]->Translate({ 0.f, 0.f, 50.f });
-		m_Meshes[1]->Translate({ 0.f, 0.f, 50.f });
+		m_Meshes[1]->Translate({ 0.f, 0.f, 50.f }); // Firemesh alwasy at idx 1 for this demo since we need to check for it to disable.
 
 		//Camera setup
 		m_Camera.Initialize(45.f, { 0.f, 0.f, 0.f }, static_cast<float>(m_Width) / static_cast<float>(m_Height));
@@ -269,7 +269,7 @@ namespace dae {
 				// View -> clipping space (NDC)
 				float const inverseWComponent{ 1.f / vOut.position.w };
 				vOut.position.x *= inverseWComponent;
-				vOut.position.y *= inverseWComponent;
+				vOut.position.y *= inverseWComponent;	
 				vOut.position.z *= inverseWComponent;
 
 				// Convert to screen space (raster space)
@@ -359,9 +359,9 @@ namespace dae {
 				Vector2 const pixel{ static_cast<float>(px) + .5f, static_cast<float>(py) + .5f };
 
 				//Calculate barycentric coordinates
-				float const weight0{ Vector2::Cross((pixel - vert1), (vert1 - vert2)) * invTotalTriangleArea };
-				float const weight1{ Vector2::Cross((pixel - vert2), (vert2 - vert0)) * invTotalTriangleArea };
-				float const weight2{ Vector2::Cross((pixel - vert0), (vert0 - vert1)) * invTotalTriangleArea };
+				float weight0{ Vector2::Cross((pixel - vert1), (vert1 - vert2)) * invTotalTriangleArea };
+				float weight1{ Vector2::Cross((pixel - vert2), (vert2 - vert0)) * invTotalTriangleArea };
+				float weight2{ Vector2::Cross((pixel - vert0), (vert0 - vert1)) * invTotalTriangleArea };
 
 				// Not in triangle
 				if (weight0 < 0.f || weight1 < 0.f || weight2 < 0.f)
@@ -385,24 +385,30 @@ namespace dae {
 				}
 				else // Pixel shading
 				{
+					//Normalize weights
+					auto const totWeight = weight0 + weight1 + weight2;
+					weight0 /= totWeight; 
+					weight1 /= totWeight;
+					weight2 /= totWeight;
+
 					Vertex_Out pixelToShade{};
 					pixelToShade.position = { static_cast<float>(px), static_cast<float>(py), interpolatedDepth,interpolatedDepth };
 
-					Vector3 const viewDir{ ((interpolatedDepth * (weight0 * (m->GetVertices_Out()[idx1].position) / m->GetVertices_Out()[idx1].position.w +
-															weight1 * (m->GetVertices_Out()[idx2].position) / m->GetVertices_Out()[idx2].position.w +
-															weight2 * (m->GetVertices_Out()[idx3].position) / m->GetVertices_Out()[idx3].position.w) / 3) - m_Camera.origin.ToPoint4() ).Normalized() };
 
-					// view dir
+					//Calculate viewdirection
+					Vector3 const viewDir{ (m->GetWorldMatrix().TransformPoint((weight0 * m->GetVertices()[idx1].position 
+																				+ weight1 * m->GetVertices()[idx2].position 
+																				+ weight2 * m->GetVertices()[idx3].position)) - m_Camera.origin).Normalized() };
 
 					pixelToShade.texcoord = interpolatedDepth * ((weight0 * m->GetVertices()[idx1].texcoord) / depth0
 						+ (weight1 * m->GetVertices()[idx2].texcoord) / depth1
 						+ (weight2 * m->GetVertices()[idx3].texcoord) / depth2);
-					pixelToShade.normal = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].normal / m->GetVertices_Out()[idx1].position.w
+					pixelToShade.normal = (Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].normal / m->GetVertices_Out()[idx1].position.w
 																	  + weight1 * m->GetVertices_Out()[idx2].normal / m->GetVertices_Out()[idx2].position.w +
-																		weight2 * m->GetVertices_Out()[idx3].normal / m->GetVertices_Out()[idx3].position.w) } / 3;
-					pixelToShade.tangent = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].tangent / m->GetVertices_Out()[idx1].position.w +
+																		weight2 * m->GetVertices_Out()[idx3].normal / m->GetVertices_Out()[idx3].position.w) } ).Normalized();
+					pixelToShade.tangent = (Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].tangent / m->GetVertices_Out()[idx1].position.w +
 																		 weight1 * m->GetVertices_Out()[idx2].tangent / m->GetVertices_Out()[idx2].position.w +
-																		 weight2 * m->GetVertices_Out()[idx3].tangent / m->GetVertices_Out()[idx3].position.w) } / 3;
+																		 weight2 * m->GetVertices_Out()[idx3].tangent / m->GetVertices_Out()[idx3].position.w) }).Normalized();
 
 
 					finalColor = PixelShading(m, pixelToShade, viewDir);
@@ -441,7 +447,7 @@ namespace dae {
 
 		//calculate observed area
 		float const observedArea{ std::clamp(m_UseNormalMapping ? Utils::CalculateObservedArea(sampledNormal,LIGHT_DIRECTION)
-													 : Utils::CalculateObservedArea(v.normal.Normalized(), LIGHT_DIRECTION), 0.f, 1.f) };
+																	: Utils::CalculateObservedArea(v.normal, LIGHT_DIRECTION), 0.f, 1.f) };
 		switch (m_CurrShadingMode)
 		{
 		case ShadingMode::ObservedArea:
@@ -456,13 +462,13 @@ namespace dae {
 		}
 		case ShadingMode::Specular:
 		{
-			result = observedArea * m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, sampledNormal);
+			result = observedArea * m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r, LIGHT_DIRECTION, viewDir, m_UseNormalMapping ? sampledNormal : v.normal);
 			break;
 		}
 		case ShadingMode::Combined:
 		{
 			auto const lambert{ BRDF::Lambert(KD, m_pVehicleDiffuseTexture->Sample(v.texcoord)) };
-			ColorRGB const phong = m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r,LIGHT_DIRECTION, viewDir, sampledNormal);
+			ColorRGB const phong = m_pVehicleSpecularTexture->Sample(v.texcoord).r * BRDF::Phong(1.f, SHININESS * m_pVehicleGlossinessTexture->Sample(v.texcoord).r,LIGHT_DIRECTION, viewDir, m_UseNormalMapping ? sampledNormal : v.normal);
 
 			result = observedArea * lambert + phong;
 			break;
