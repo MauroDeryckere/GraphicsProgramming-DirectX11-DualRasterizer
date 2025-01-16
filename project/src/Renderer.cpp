@@ -289,7 +289,7 @@ namespace dae {
 
 	void Renderer::RenderTriangle(Mesh* m, std::vector<Vector2> const& vertices, uint32_t startVertex, bool swapVertex) const
 	{
-		//Rasterization stage
+		//"Clipping" Stage
 		const size_t idx1{ m->GetIndices()[startVertex + (2 * swapVertex)] };
 		const size_t idx2{ m->GetIndices()[startVertex + 1] };
 		const size_t idx3{ m->GetIndices()[startVertex + (!swapVertex * 2)] };
@@ -305,6 +305,7 @@ namespace dae {
 			return; //clipping could be applied here instead of just returning.
 
 
+		//Rasterization stage
 		const Vector2& vert0{ vertices[idx1] };
 		const Vector2& vert1{ vertices[idx2] };
 		const Vector2& vert2{ vertices[idx3] };
