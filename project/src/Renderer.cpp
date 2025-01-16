@@ -23,13 +23,14 @@ namespace dae {
 		std::fill_n(m_pDepthBufferPixels, (m_Width * m_Height), FLT_MAX);
 
 		//Initialize DirectX pipeline
-		if (InitializeDirectX() == S_OK)
+		if (SUCCEEDED(InitializeDirectX()))
 		{
 			m_IsDirectXInitialized = true;
 			std::cout << GREEN << "DirectX is initialized and ready!" << RESET << std::endl;
 		}
 		else
 		{
+			m_IsSofwareRasterizerMode = true;
 			std::cout << RED << "DirectX initialization failed!" << RESET << std::endl;
 		}
 
@@ -95,6 +96,7 @@ namespace dae {
 
 		if (!m_IsDirectXInitialized)
 		{
+			std::cout << RED << "DirectX not Initialized\n" << RESET;
 			return;
 		}
 
@@ -154,7 +156,10 @@ namespace dae {
 	void Renderer::RenderDirectXHardware() const
 	{
 		if (!m_IsDirectXInitialized)
+		{
+			std::cout << RED << "DirectX not Initialized\n" << RESET;
 			return;
+		}
 
 		// Clear RTV & DSV
 		m_pDeviceContext->ClearRenderTargetView(m_pRenderTargetView, m_DisplayUniformClearColor ? UNIFORM_COLOR : HARDWARE_COLOR);
@@ -399,14 +404,14 @@ namespace dae {
 																				+ weight2 * m->GetVertices()[idx3].position)) - m_Camera.origin).Normalized() };
 
 					pixelToShade.texcoord = interpolatedDepth * ((weight0 * m->GetVertices()[idx1].texcoord) / depth0
-						+ (weight1 * m->GetVertices()[idx2].texcoord) / depth1
-						+ (weight2 * m->GetVertices()[idx3].texcoord) / depth2);
-					pixelToShade.normal = (Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].normal / m->GetVertices_Out()[idx1].position.w
-																	  + weight1 * m->GetVertices_Out()[idx2].normal / m->GetVertices_Out()[idx2].position.w +
-																		weight2 * m->GetVertices_Out()[idx3].normal / m->GetVertices_Out()[idx3].position.w) } ).Normalized();
-					pixelToShade.tangent = (Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].tangent / m->GetVertices_Out()[idx1].position.w +
-																		 weight1 * m->GetVertices_Out()[idx2].tangent / m->GetVertices_Out()[idx2].position.w +
-																		 weight2 * m->GetVertices_Out()[idx3].tangent / m->GetVertices_Out()[idx3].position.w) }).Normalized();
+																+ (weight1 * m->GetVertices()[idx2].texcoord) / depth1
+																+ (weight2 * m->GetVertices()[idx3].texcoord) / depth2);
+					pixelToShade.normal = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].normal / m->GetVertices_Out()[idx1].position.w
+																	  + weight1 * m->GetVertices_Out()[idx2].normal / m->GetVertices_Out()[idx2].position.w 
+																	  + weight2 * m->GetVertices_Out()[idx3].normal / m->GetVertices_Out()[idx3].position.w) }.Normalized();
+					pixelToShade.tangent = Vector3{ interpolatedDepth * (weight0 * m->GetVertices_Out()[idx1].tangent / m->GetVertices_Out()[idx1].position.w 
+																		+ weight1 * m->GetVertices_Out()[idx2].tangent / m->GetVertices_Out()[idx2].position.w 
+																		+ weight2 * m->GetVertices_Out()[idx3].tangent / m->GetVertices_Out()[idx3].position.w) }.Normalized();
 
 
 					finalColor = PixelShading(m, pixelToShade, viewDir);

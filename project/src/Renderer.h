@@ -34,6 +34,12 @@ namespace dae
 		// When F1 is pressed, switch between sofware and hardware rasterizer
 		void ToggleRasterizerMode() noexcept
 		{
+			if (!m_IsDirectXInitialized)
+			{
+				std::cout << RED << "DirectX not Initialized\n" << RESET;
+				return;
+			}
+
 			m_IsSofwareRasterizerMode = !m_IsSofwareRasterizerMode;
 
 			if (m_IsSofwareRasterizerMode)
@@ -196,7 +202,7 @@ namespace dae
 
 			if (!m_IsDirectXInitialized)
 			{
-				std::cout << RED << "DirectX not Initializeed\n" << RESET;
+				std::cout << RED << "DirectX not Initialized\n" << RESET;
 				return;
 			}
 
