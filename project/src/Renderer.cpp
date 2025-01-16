@@ -219,14 +219,14 @@ namespace dae {
 					[this, &m, &vertices_screenSpace](uint32_t v)
 					{
 						if (v % 3 == 0)
-						{  // Only process every 3rd index - threading would be slightly better using a "custom" system but for this demo it is sufficient
+						{  // Only process every 3rd index
 							RenderTriangle(m.get(), vertices_screenSpace, v, false);
 						}
 					});
 				break;
 			case PrimitiveTopology::TriangleStrip:
 				std::for_each(
-					std::execution::par_unseq,  // Parallel execution policy
+					std::execution::par_unseq,  // Parallel execution policy - threading would be slightly better using a "custom" system but for this demo it is sufficient
 					m->GetIndices().begin(), m->GetIndices().end() - 2,
 					[this, &m, &vertices_screenSpace](uint32_t v)
 					{
@@ -336,7 +336,7 @@ namespace dae {
 		//Small margin is required to prevent "black lines"
 		Vector2 topLeft{ Vector2::Min(vert0,Vector2::Min(vert1,vert2)) - Vector2{1.f, 1.f} };
 		Vector2 topRight{ Vector2::Max(vert0,Vector2::Max(vert1,vert2)) + Vector2{1.f, 1.f} };
-
+		
 		// prevent looping over something off-screen
 		topLeft.x = std::clamp(topLeft.x, 0.f, static_cast<float>(m_Width));
 		topLeft.y = std::clamp(topLeft.y, 0.f, static_cast<float>(m_Height));
