@@ -108,11 +108,13 @@ int main(int argc, char* args[])
 					displayFPS = !displayFPS;
 					if (displayFPS)
 					{
-						std::cout << "Display FPS -> Enabled\n";
+						std::cout << "Display FPS -> "<< GREEN << "Enabled\n";
+						std::cout << RESET;
 					}
 					else
 					{
-						std::cout << "Display FPS -> Disabled\n";
+						std::cout << "Display FPS -> " << RED << "Disabled\n";
+						std::cout << RESET;
 					}
 				}
 				break;
@@ -150,23 +152,24 @@ int main(int argc, char* args[])
 
 void PrintSettings() noexcept
 {
-	std::cout << "Settings & Keybinds: \n";
+	std::cout << YELLOW << "Settings & Keybinds: \n";
 
 	std::cout << "[F1]: Toggle Rasterizer Mode (Software - Hardware)\n";
 	std::cout << "[F2]: Toggle Rotation Mode\n";
-	std::cout << "[F3]: Toggle Display Fire Mesh (Only works for hardware, not displayed in software rasterizer)\n";
-	std::cout << "[F4]: Cycle Sampler Mode (Only works for hardware)\n";
-	std::cout << "[F5]: Cycle Shading Mode (Only works for software)\n";
-	std::cout << "[F6]: Toggle Normal Mapping (Only works for software)\n";
-	std::cout << "[F7]: Toggle Display Depth Buffer (Only works for software)\n";
-	std::cout << "[F8]: Toggle Display Bounding Boxes (Only works for software)\n";
+	std::cout << "[F3]: Toggle Display Fire Mesh ("<< RED << "Only works for hardware"<< YELLOW << ", not displayed in software rasterizer)\n";
+	std::cout << "[F4]: Cycle Sampler Mode (" << RED << "Only works for hardware"<< YELLOW <<")\n";
+	std::cout << "[F5]: Cycle Shading Mode (" << RED << "Only works for software"<< YELLOW <<")\n";
+	std::cout << "[F6]: Toggle Normal Mapping (" << RED << "Only works for software" << YELLOW << ")\n";
+	std::cout << "[F7]: Toggle Display Depth Buffer (" << RED << "Only works for software" << YELLOW << ")\n";
+	std::cout << "[F8]: Toggle Display Bounding Boxes (" << RED << "Only works for software" << YELLOW << ")\n";
 	std::cout << "[F9]: Cycle Cull Mode\n";
 	std::cout << "[F10]: Toggle Uniform Display Colour\n";
 	std::cout << "[F11]: Toggle Display FPS\n\n";
 
-	std::cout << "[ARROWS | WASD]: Move\n";
+	std::cout << GREEN << "[ARROWS | WASD]: Move\n";
 	std::cout << "[LSHIFT]: Sprint\n";
 	std::cout << "[RMB + LMB]: Move Up / Down\n";
 	std::cout << "[RMB]: Rotate\n";
 	std::cout << "[LMB]: Rotate horizontally (horizontal mouse movement), move forward / backward (vertical mouse movement)\n\n";
+	std::cout << RESET;
 }

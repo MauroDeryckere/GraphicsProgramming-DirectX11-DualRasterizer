@@ -38,10 +38,12 @@ namespace dae
 
 			if (m_IsSofwareRasterizerMode)
 			{
-				std::cout << "Rasterizer -> Software\n";
+				std::cout << "Rasterizer -> " << GREEN << "Software\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Rasterizer -> Hardware\n";
+			std::cout << "Rasterizer -> " << GREEN << "Hardware\n";
+			std::cout << RESET;
 		}
 		// When F2 is pressed, switch beteen rotating or not rotating the models
 		void ToggleRotationMode() noexcept
@@ -49,23 +51,30 @@ namespace dae
 			m_IsRotationMode = !m_IsRotationMode;
 			if (m_IsRotationMode)
 			{
-				std::cout << "Rotation -> Enabled\n";
+				std::cout << "Rotation -> " << GREEN << "Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Rotation -> Disabled\n";
+			std::cout << "Rotation -> " << RED << "Disabled\n";
+			std::cout << RESET;
 		}
 		// When F3 is pressed, switch beteen displaying or not displaying the fire mesh (only for the hardware rasterizer currently)
 		void ToggleFireMesh() noexcept
 		{
 			if (m_IsSofwareRasterizerMode)
+			{
+				std::cout << RED << "Not in software rasterizer, can not toggle fire mesh setting\n" << RESET;
 				return;
+			}
 			m_DisplayFireMesh = !m_DisplayFireMesh;
 			if (m_DisplayFireMesh)
 			{
-				std::cout << "FireMesh -> Enabled\n";
+				std::cout << "FireMesh -> " << GREEN << "Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "FireMesh -> Disabled\n";
+			std::cout << "FireMesh -> " << RED << "Disabled\n";
+			std::cout << RESET;
 		}
 		// When F4 is pressed, change to next sampler state (only for the hardware rasterizer currently)
 		void ChangeSamplerState() noexcept;
@@ -73,7 +82,10 @@ namespace dae
 		void ChangeShadingMode() noexcept
 		{
 			if (!m_IsSofwareRasterizerMode)
+			{
+				std::cout << RED << "Not in software rasterizer, can not cycle shading mode setting\n" << RESET;
 				return;
+			}
 			auto curr{ static_cast<uint8_t>(m_CurrShadingMode) };
 			++curr %= static_cast<uint8_t>(ShadingMode::COUNT);
 
@@ -82,16 +94,20 @@ namespace dae
 			switch (m_CurrShadingMode)
 			{
 			case ShadingMode::ObservedArea:
-				std::cout << "Shading mode -> ObservedArea\n";
+				std::cout << "Shading mode -> " << GREEN << "ObservedArea\n";
+				std::cout << RESET;
 				break;
 			case ShadingMode::Diffuse:
-				std::cout << "Shading mode -> Diffuse\n";
+				std::cout << "Shading mode -> " << GREEN << "Diffuse\n";
+				std::cout << RESET;
 				break;
 			case ShadingMode::Specular:
-				std::cout << "Shading mode -> Specular\n";
+				std::cout << "Shading mode -> " << GREEN << "Specular\n";
+				std::cout << RESET;
 				break;
 			case ShadingMode::Combined:
-				std::cout << "Shading mode -> Combined\n";
+				std::cout << "Shading mode -> " << GREEN << "Combined\n";
+				std::cout << RESET;
 				break;
 			default: break;
 			}
@@ -100,43 +116,58 @@ namespace dae
 		void ToggleNormalMap() noexcept
 		{
 			if (!m_IsSofwareRasterizerMode)
+			{
+				std::cout << RED << "Not in software rasterizer, can not toggle normal map buffer setting\n" << RESET;
 				return;
+			}
 
 			m_UseNormalMapping = !m_UseNormalMapping;
 			if (m_UseNormalMapping)
 			{
-				std::cout << "Normal mapping -> Enabled\n";
+				std::cout << "Normal mapping -> " << GREEN << "Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Normal mapping -> Disabled\n";
+			std::cout << "Normal mapping -> " << RED << "Disabled\n";
+			std::cout << RESET;
 		}
 		// When F7 is pressed, toggle the depth buffer visualization (only for the software rasterizer currently)
 		void ToggleDisplayDepthBuffer() noexcept
 		{
 			if (!m_IsSofwareRasterizerMode)
+			{
+				std::cout << RED << "Not in software rasterizer, can not toggle depth buffer setting\n" << RESET;
 				return;
+			}
 
 			m_ShowDepthBuffer = !m_ShowDepthBuffer;
 			if (m_ShowDepthBuffer)
 			{
-				std::cout << "Show depth buffer -> Enabled\n";
+				std::cout << "Show depth buffer -> " << GREEN << "Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Show depth buffer -> Disabled\n";
+			std::cout << "Show depth buffer -> " << RED << "Disabled\n";
+			std::cout << RESET;
 		}
 		// When F8 is pressed, toggle the bounding box visualization (only for the software rasterizer currently)
 		void ToggleBoundingBoxes() noexcept
 		{
 			if (!m_IsSofwareRasterizerMode)
+			{
+				std::cout << RED << "Not in software rasterizer, can not toggle bounding boxes setting\n" << RESET;
 				return;
+			}
 
 			m_ShowBoundingBoxes = !m_ShowBoundingBoxes;
 			if (m_ShowBoundingBoxes)
 			{
-				std::cout << "Show bounding boxes -> Enabled\n";
+				std::cout << "Show bounding boxes -> " << GREEN << "Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Show bounding boxes -> Disabled\n";
+			std::cout << "Show bounding boxes -> " << RED << "Disabled\n";
+			std::cout << RESET;
 		}
 		// When F9 is pressed, switch to the next cull mode
 		void ChangeCullMode() noexcept
@@ -149,19 +180,23 @@ namespace dae
 			switch (m_CurrCullMode)
 			{
 			case CullMode::Back:
-				std::cout << "Culling mode -> Back\n";
+				std::cout << "Culling mode -> "<< GREEN << "Back\n";
+				std::cout << RESET;
 				break;
 			case CullMode::Front:
-				std::cout << "Culling mode -> Front\n";
+				std::cout << "Culling mode -> " << GREEN << "Front\n";
+				std::cout << RESET;
 				break;
 			case CullMode::None:
-				std::cout << "Cullings mode -> None\n";
+				std::cout << "Cullings mode -> " << GREEN << "None\n";
+				std::cout << RESET;
 				break;
 			default: break;
 			}
 
 			if (!m_IsDirectXInitialized)
 			{
+				std::cout << RED << "DirectX not Initializeed\n" << RESET;
 				return;
 			}
 
@@ -180,10 +215,12 @@ namespace dae
 			m_DisplayUniformClearColor = !m_DisplayUniformClearColor;
 			if (m_DisplayUniformClearColor)
 			{
-				std::cout << "Use uniform clear color -> Enabled\n";
+				std::cout << "Use uniform clear color ->" << GREEN << " Enabled\n";
+				std::cout << RESET;
 				return;
 			}
-			std::cout << "Use uniform clear color -> Disabled\n";
+			std::cout << "Use uniform clear color ->" << RED << " Disabled\n";
+			std::cout << RESET;
 		}
 	#pragma endregion
 

@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <sstream>
+#include <cstdlib>
 #include <memory>
 #define NOMINMAX  //for directx
 
@@ -34,3 +35,9 @@
 // Framework Headers
 #include "Timer.h"
 #include "Math.h"
+
+// Cool CMD prompt colours
+#define RESET   "\033[0m"
+#define RED     "\033[31m"
+#define GREEN   "\033[32m"
+#define YELLOW  "\033[33m"

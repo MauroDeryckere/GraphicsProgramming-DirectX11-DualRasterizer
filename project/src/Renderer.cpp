@@ -88,7 +88,11 @@ namespace dae {
 	void Renderer::ChangeSamplerState() noexcept
 	{
 		if (m_IsSofwareRasterizerMode)
+		{
+			std::cout << RED << "Not in hardware rasterizer, can not cycle sampler state setting\n" << RESET;
 			return;
+		}
+
 		if (!m_IsDirectXInitialized)
 		{
 			return;
@@ -102,13 +106,16 @@ namespace dae {
 		switch (m_SamplerState)
 		{
 		case SamplerState::Point: 
-			std::cout << "Sampler state -> PointSampler \n";
+			std::cout << "Sampler state -> " << GREEN << "PointSampler \n";
+			std::cout << RESET;
 			break;
 		case SamplerState::Linear:
-			std::cout << "Sampler state -> LinearSampler \n";
+			std::cout << "Sampler state -> " << GREEN << "LinearSampler \n";
+			std::cout << RESET;
 			break;
 		case SamplerState::Anisotropic:
-			std::cout << "Sampler state -> AnisotropicSampler \n";
+			std::cout << "Sampler state -> " << GREEN << "AnisotropicSampler \n";
+			std::cout << RESET;
 			break;
 		default: break;
 		}
