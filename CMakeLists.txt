@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 # Project Name
-project(GP1_DirectX)
+project(DualRasterizer)
 
 # Use C++20
 set(CMAKE_CXX_STANDARD 20)
