@@ -101,11 +101,11 @@ struct VS_OUTPUT
 };
 
 // "private functions"
-float4 CalculateLambert(float kd, float4 cd)
+float4 Lambert(float kd, float4 cd)
 {
     return cd * kd / gPI;
 }
-float CalculatePhong(float ks, float exp, float3 lightDir, float3 viewDir, float3 normal)
+float Phong(float ks, float exp, float3 lightDir, float3 viewDir, float3 normal)
 {
     const float3 refl = reflect(-lightDir, normal);
     const float a = saturate(dot(refl, viewDir));
@@ -143,12 +143,12 @@ float4 PS(VS_OUTPUT input, SamplerState s) : SV_TARGET
     }
     
     const float3 viewDir = normalize(input.WorldPosition.xyz - gCameraPosition); 
-    const float4 lambert = CalculateLambert(gLightIntensity, gDiffuseMap.Sample(s, input.TexCoord));
-    const float4 specular = gSpecularMap.Sample(s, input.TexCoord) * CalculatePhong(1.0f, 
-                                                                                gShininess * gGlossinessMap.Sample(s, input.TexCoord).b, 
-                                                                                gLightDirection, 
-                                                                                viewDir, 
-                                                                                input.Normal);
+    const float4 lambert = Lambert(gLightIntensity, gDiffuseMap.Sample(s, input.TexCoord));
+    const float4 specular = gSpecularMap.Sample(s, input.TexCoord) * Phong(1.0f, 
+                                                                            gShininess * gGlossinessMap.Sample(s, input.TexCoord).b, 
+                                                                            gLightDirection, 
+                                                                            viewDir, 
+                                                                            input.Normal);
     // soeme different returns to double check everything works correctly
     // return float4(normalMap, 1.0F);
     // return lambert;
@@ -176,7 +176,6 @@ technique11 PointSampling
         SetPixelShader(CompileShader(ps_5_0, PS_P()));
     }
 }
-
 technique11 LinearSampling
 {
     pass P0
@@ -189,7 +188,6 @@ technique11 LinearSampling
         SetPixelShader(CompileShader(ps_5_0, PS_L()));
     }
 }
-
 technique11 AniSampling
 {
     pass P0

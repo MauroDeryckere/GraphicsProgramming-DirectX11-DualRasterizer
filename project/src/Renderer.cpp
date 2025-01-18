@@ -371,9 +371,16 @@ namespace dae {
 				if (weight0 < 0.f || weight1 < 0.f || weight2 < 0.f)
 					continue;
 
+				//Normalize weights
+				auto const totWeight = weight0 + weight1 + weight2;
+				weight0 /= totWeight;
+				weight1 /= totWeight;
+				weight2 /= totWeight;
+
 				float const depth0{ m->GetVertices_Out()[idx1].position.z };
 				float const depth1{ m->GetVertices_Out()[idx2].position.z };
 				float const depth2{ m->GetVertices_Out()[idx3].position.z };
+				
 				float const interpolatedDepth{ 1.f / (weight0 * (1.f / depth0) + weight1 * (1.f / depth1) + weight2 * (1.f / depth2)) };
 
 				if (interpolatedDepth < 0.f || interpolatedDepth > 1.f || m_pDepthBufferPixels[px + py * m_Width] < interpolatedDepth)
@@ -389,12 +396,6 @@ namespace dae {
 				}
 				else // Pixel shading
 				{
-					//Normalize weights
-					auto const totWeight = weight0 + weight1 + weight2;
-					weight0 /= totWeight; 
-					weight1 /= totWeight;
-					weight2 /= totWeight;
-
 					Vertex_Out pixelToShade{};
 					pixelToShade.position = { static_cast<float>(px), static_cast<float>(py), interpolatedDepth,interpolatedDepth };
 

@@ -151,7 +151,7 @@ namespace dae
 				// LMB - move forward / backward and rotate yaw 
 				if (mouseState & SDL_BUTTON(SDL_BUTTON_LEFT))
 				{
-					origin += forward * (-mouseY * adjustedMovementSpeed * 10.f *deltaTime);
+					origin += forward * (-mouseY * adjustedMovementSpeed * 10.f * deltaTime);
 					forward = Matrix::CreateRotationY(mouseX * rotationSpeed * deltaTime).TransformVector(forward);
 				}
 
